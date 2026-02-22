@@ -1,0 +1,11 @@
+{
+  "name": "@iptv/android-tv",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo Use Android Studio + gradle to run debug install",
+    "build": "echo Run gradle :app:assembleDebug",
+    "lint": "echo Run gradle :app:ktlintCheck",
+    "test": "echo Run gradle :app:testDebugUnitTest"
+  }
+}

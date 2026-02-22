@@ -1,0 +1,29 @@
+{
+  "name": "@iptv/webos",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "package:ipk": "powershell -ExecutionPolicy Bypass -File ./scripts/install-webos.ps1 -PackageOnly",
+    "install:webos": "powershell -ExecutionPolicy Bypass -File ./scripts/install-webos.ps1",
+    "uninstall:webos": "powershell -ExecutionPolicy Bypass -File ./scripts/uninstall-webos.ps1",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "test": "node -e \"console.log('No automated tests yet for webos app')\""
+  },
+  "dependencies": {
+    "@iptv/core": "workspace:*",
+    "@iptv/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-legacy": "^6.1.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}

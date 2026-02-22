@@ -1,0 +1,275 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PairingStatus {
+  PENDING
+  PAIRED
+  EXPIRED
+}
+
+model User {
+  id              String           @id @default(uuid())
+  email           String           @unique
+  passwordHash    String
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  passwordResetRequest PasswordResetRequest?
+  clients         Client[]
+  devices         Device[]
+  pairings        PairingSession[]
+  playlistSource  PlaylistSource?
+  playlistCache   PlaylistCache?
+  basePlaylists   BasePlaylist[]
+  customPlaylists CustomPlaylist[]
+  epgSource       EpgSource?
+  epgSnapshot     EpgSnapshot?
+  ottProviders    OttProvider[]
+  ottChannels     OttChannel[]
+  ottPrograms     OttProgram[]
+  telemetryEvents TelemetryEvent[]
+}
+
+model AdminRegistrationRequest {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  tokenHash    String   @unique
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model PasswordResetRequest {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+}
+
+model Device {
+  id              String           @id @default(uuid())
+  name            String
+  platform        String
+  deviceToken     String?          @unique
+  pairedAt        DateTime?
+  lastSeenAt      DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  userId          String?
+  clientId        String?
+  user            User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  client          Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  pairingSessions PairingSession[]
+  telemetryEvents TelemetryEvent[]
+
+  @@index([userId])
+  @@index([clientId])
+}
+
+model PairingSession {
+  id              String        @id @default(uuid())
+  code            String        @unique
+  status          PairingStatus @default(PENDING)
+  expiresAt       DateTime
+  confirmedAt     DateTime?
+  pollIntervalSec Int           @default(3)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deviceId        String
+  userId          String?
+  device          Device        @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  user            User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId])
+}
+
+model Client {
+  id             String   @id @default(uuid())
+  firstName      String
+  lastName       String
+  phone          String
+  address        String
+  devicesAllowed Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  devices        Device[]
+
+  @@index([userId])
+  @@index([phone])
+}
+
+model PlaylistSource {
+  id           String   @id @default(uuid())
+  url          String
+  lastFetchedAt DateTime?
+  lastError    String?
+  activeCustomPlaylistId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PlaylistCache {
+  id                    String   @id @default(uuid())
+  channelsJson          Json
+  updatedAt             DateTime @updatedAt
+  lastSuccessfulFetchAt DateTime?
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BasePlaylist {
+  id           String            @id @default(uuid())
+  name         String
+  url          String
+  lastFetchedAt DateTime?
+  lastError    String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  userId       String
+  user         User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  cache        BasePlaylistCache?
+
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+model BasePlaylistCache {
+  id                    String       @id @default(uuid())
+  channelsJson          Json
+  updatedAt             DateTime     @updatedAt
+  lastSuccessfulFetchAt DateTime?
+  basePlaylistId        String       @unique
+  basePlaylist          BasePlaylist @relation(fields: [basePlaylistId], references: [id], onDelete: Cascade)
+}
+
+model CustomPlaylist {
+  id         String   @id @default(uuid())
+  name       String
+  channelIds Json
+  sourcePlaylistIds Json
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([updatedAt])
+}
+
+model EpgSource {
+  id            String   @id @default(uuid())
+  url           String
+  lastIngestedAt DateTime?
+  lastError     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EpgSnapshot {
+  id                  String   @id @default(uuid())
+  programsJson        Json
+  updatedAt           DateTime @updatedAt
+  lastSuccessfulIngest DateTime?
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OttProvider {
+  id            String      @id @default(uuid())
+  key           String
+  sourcePath    String
+  channelsPath  String
+  updatedLabel  String?
+  sizeLabel     String?
+  channelsCount Int         @default(0)
+  lastSyncedAt  DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channels      OttChannel[]
+  programs      OttProgram[]
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+model OttChannel {
+  id                 String      @id @default(uuid())
+  externalKey        String
+  displayName        String
+  tvgId              String?
+  logoUrl            String?
+  epgPath            String?
+  epgUrl             String?
+  programCount       Int         @default(0)
+  lastProgramsSyncAt DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  userId             String
+  providerId         String
+  user               User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider           OttProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  programs           OttProgram[]
+
+  @@unique([providerId, externalKey])
+  @@index([providerId])
+  @@index([userId])
+  @@index([tvgId])
+}
+
+model OttProgram {
+  id          String      @id @default(uuid())
+  sequence    Int
+  dateLabel   String
+  timeLabel   String
+  title       String
+  description String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  userId      String
+  providerId  String
+  channelId   String
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider    OttProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  channel     OttChannel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([channelId, sequence])
+  @@index([channelId])
+  @@index([providerId])
+  @@index([userId])
+  @@index([dateLabel])
+}
+
+model TelemetryEvent {
+  id        String   @id @default(uuid())
+  type      String
+  payload   Json
+  createdAt DateTime @default(now())
+  userId    String?
+  deviceId  String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device    Device?  @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+
+  @@index([deviceId])
+  @@index([userId])
+}

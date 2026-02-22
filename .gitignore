@@ -1,0 +1,23 @@
+node_modules/
+
+# Build output
+**/dist/
+**/build/
+
+# Logs
+npm-debug.log*
+pnpm-debug.log*
+
+# Env
+.env
+.env.local
+apps/backend/.env
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db

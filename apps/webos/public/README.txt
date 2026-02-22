@@ -1,0 +1,1 @@
+webOS app assets placeholder. Replace icon and package with ares-cli.

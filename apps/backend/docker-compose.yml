@@ -1,0 +1,29 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: iptv-postgres
+    environment:
+      POSTGRES_DB: iptv
+      POSTGRES_USER: iptv
+      POSTGRES_PASSWORD: iptv
+    ports:
+      - '5432:5432'
+    volumes:
+      - iptv-postgres-data:/var/lib/postgresql/data
+
+  backend:
+    image: node:20-alpine
+    container_name: iptv-backend
+    working_dir: /workspace
+    command: sh -lc "corepack enable && corepack prepare pnpm@9.15.5 --activate && pnpm install --frozen-lockfile=false && pnpm --filter @iptv/backend prisma:generate && pnpm --filter @iptv/backend prisma:deploy && pnpm --filter @iptv/backend dev"
+    env_file:
+      - .env
+    ports:
+      - '3000:3000'
+    volumes:
+      - ../../:/workspace
+    depends_on:
+      - postgres
+
+volumes:
+  iptv-postgres-data:

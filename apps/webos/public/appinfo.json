@@ -1,0 +1,11 @@
+{
+  "id": "com.example.iptv.webos",
+  "version": "0.1.0",
+  "vendor": "Example",
+  "type": "web",
+  "main": "index.html",
+  "title": "IPTV webOS MVP",
+  "icon": "icon.png",
+  "requiredPermissions": ["internet"],
+  "largeIcon": "icon.png"
+}

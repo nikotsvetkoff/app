@@ -1,0 +1,55 @@
+
+> @iptv/backend@0.1.0 dev C:\Users\nikot\Desktop\play\apps\backend
+> tsx watch --tsconfig tsconfig.json src/main.ts
+
+Bootstrap failed TypeError: Cannot read properties of undefined (reading '0')
+    at C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+swagger@7.4.2_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_r_pkyu7vfpod27wcuro7za3rcgx4\node_modules\@nestjs\swagger\dist\services\parameter-metadata-accessor.js:14:24
+    at C:\Users\nikot\Desktop\play\node_modules\.pnpm\lodash@4.17.21\node_modules\lodash\lodash.js:13469:38
+    at C:\Users\nikot\Desktop\play\node_modules\.pnpm\lodash@4.17.21\node_modules\lodash\lodash.js:4967:15
+    at baseForOwn (C:\Users\nikot\Desktop\play\node_modules\.pnpm\lodash@4.17.21\node_modules\lodash\lodash.js:3032:24)
+    at mapValues (C:\Users\nikot\Desktop\play\node_modules\.pnpm\lodash@4.17.21\node_modules\lodash\lodash.js:13468:7)
+    at ParameterMetadataAccessor.explore (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+swagger@7.4.2_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_r_pkyu7vfpod27wcuro7za3rcgx4\node_modules\@nestjs\swagger\dist\services\parameter-metadata-accessor.js:13:59)
+    at exploreApiParametersMetadata (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+swagger@7.4.2_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_r_pkyu7vfpod27wcuro7za3rcgx4\node_modules\@nestjs\swagger\dist\explorers\api-parameters.explorer.js:20:58)
+    at C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+swagger@7.4.2_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_r_pkyu7vfpod27wcuro7za3rcgx4\node_modules\@nestjs\swagger\dist\swagger-explorer.js:73:45
+    at Array.reduce (<anonymous>)
+    at C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+swagger@7.4.2_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_r_pkyu7vfpod27wcuro7za3rcgx4\node_modules\@nestjs\swagger\dist\swagger-explorer.js:72:104
+15:22:15 [tsx] change in ./src\main.ts Rerunning...
+cSwagger disabled: Cannot read properties of undefined (reading '0')
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThrottlerModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTelemetryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDeviceApiModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDevicesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlaylistModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEpgModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevicesController {/devices}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/start, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/confirm, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlaylistController {/playlist}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEpgController {/epg}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDeviceApiController {/device}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/playlist, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/now-next, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/day, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTelemetryController {/telemetry}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telemetry/event, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 17556  - [39m20.02.2026, 15:22:17 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+Backend running on http://localhost:3000

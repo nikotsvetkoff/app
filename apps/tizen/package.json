@@ -1,0 +1,28 @@
+{
+  "name": "@iptv/tizen",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.json && vite build",
+    "assets:seller": "powershell -ExecutionPolicy Bypass -File ./scripts/generate-seller-images.ps1",
+    "package:wgt:unsigned": "powershell -ExecutionPolicy Bypass -File ./scripts/package-unsigned-wgt.ps1",
+    "package:wgt:signed": "powershell -ExecutionPolicy Bypass -File ./scripts/package-signed-wgt.ps1 -ProfileName IptvProfile",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "test": "node -e \"console.log('No automated tests yet for tizen app')\""
+  },
+  "dependencies": {
+    "@iptv/core": "workspace:*",
+    "@iptv/ui": "workspace:*",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^6.0.3"
+  }
+}

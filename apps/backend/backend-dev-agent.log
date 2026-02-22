@@ -1,0 +1,283 @@
+No projects matched the filters "c:\Users\nikot\Desktop\play" in "C:\Users\nikot\Desktop\play"
+
+> @iptv/backend@0.1.0 dev C:\Users\nikot\Desktop\play\apps\backend
+> tsx watch --tsconfig tsconfig.json src/main.ts
+
+Swagger disabled: Cannot read properties of undefined (reading '0')
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThrottlerModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTelemetryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDeviceApiModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDevicesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlaylistModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOttCatalogModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEpgModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevicesController {/devices}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/start, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/confirm, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlaylistController {/playlist}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEpgController {/epg}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOttCatalogController {/ott-catalog}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/stats, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/sync/full, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDeviceApiController {/device}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/playlist, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/now-next, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/day, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClientsController {/clients}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id/pairings, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminsController {/admins}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTelemetryController {/telemetry}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telemetry/event, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 20828  - [39m22.02.2026, 18:57:38 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+Backend running on http://localhost:3000
+18:59:44 [tsx] change in ./src\main.ts Restarting...
+cSwagger disabled: Cannot read properties of undefined (reading '0')
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThrottlerModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTelemetryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDeviceApiModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDevicesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlaylistModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOttCatalogModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEpgModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevicesController {/devices}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/start, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/confirm, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlaylistController {/playlist}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEpgController {/epg}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOttCatalogController {/ott-catalog}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/stats, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/sync, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/sync/full, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDeviceApiController {/device}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/playlist, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/now-next, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/day, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClientsController {/clients}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id/pairings, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminsController {/admins}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTelemetryController {/telemetry}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telemetry/event, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 15356  - [39m22.02.2026, 18:59:46 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+Backend running on http://localhost:3000
+[31m[Nest] 15356  - [39m22.02.2026, 19:10:27 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.ottChannel.findMany()` invocation in
+C:\Users\nikot\Desktop\play\apps\backend\src\ott-catalog\ott-catalog.service.ts:92:47
+
+  89 await this.tryAutoSyncChannels(provider.id, userId);
+  90 
+  91 const normalizedSearch = search.trim();
+→ 92 const rows = await this.prisma.ottChannel.findMany({
+       where: {
+         providerId: "8587b907-5c9d-4497-b8a9-85b7e017f180",
+         OR: [
+           {
+             displayName: {
+               contains: "Duo 3",
+               mode: "insensitive"
+             }
+           },
+           {
+             tvgId: {
+               contains: "Duo 3",
+               mode: "insensitive"
+             }
+           }
+         ]
+       },
+       orderBy: [
+         {
+           displayName: "asc"
+         }
+       ],
+       take: "20"
+             ~~~~
+     })
+
+Argument `take`: Invalid value provided. Expected Int, provided String.[39m
+PrismaClientValidationError: 
+Invalid `this.prisma.ottChannel.findMany()` invocation in
+C:\Users\nikot\Desktop\play\apps\backend\src\ott-catalog\ott-catalog.service.ts:92:47
+
+  89 await this.tryAutoSyncChannels(provider.id, userId);
+  90 
+  91 const normalizedSearch = search.trim();
+→ 92 const rows = await this.prisma.ottChannel.findMany({
+       where: {
+         providerId: "8587b907-5c9d-4497-b8a9-85b7e017f180",
+         OR: [
+           {
+             displayName: {
+               contains: "Duo 3",
+               mode: "insensitive"
+             }
+           },
+           {
+             tvgId: {
+               contains: "Duo 3",
+               mode: "insensitive"
+             }
+           }
+         ]
+       },
+       orderBy: [
+         {
+           displayName: "asc"
+         }
+       ],
+       take: "20"
+             ~~~~
+     })
+
+Argument `take`: Invalid value provided. Expected Int, provided String.
+    at wn (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:29:1363)
+    at $n.handleRequestError (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6958)
+    at $n.handleAndLogRequestError (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\nikot\Desktop\play\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async OttCatalogService.listChannels (C:\Users\nikot\Desktop\play\apps\backend\src\ott-catalog\ott-catalog.service.ts:92:18)
+    at async C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_re_trbwzvlqco7r3sozx4i6miug5i\node_modules\@nestjs\core\router\router-execution-context.js:46:28
+    at async C:\Users\nikot\Desktop\play\node_modules\.pnpm\@nestjs+core@10.4.22_@nestjs+common@10.4.22_class-transformer@0.5.1_class-validator@0.14.3_re_trbwzvlqco7r3sozx4i6miug5i\node_modules\@nestjs\core\router\router-proxy.js:9:17
+19:32:28 [tsx] change in ./src\main.ts Rerunning...
+cSwagger disabled: Cannot read properties of undefined (reading '0')
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThrottlerModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTelemetryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDeviceApiModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDevicesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOttCatalogModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEpgModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlaylistModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevicesController {/devices}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/start, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/confirm, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlaylistController {/playlist}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOttCatalogController {/ott-catalog}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/stats, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/sync/full, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEpgController {/epg}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDeviceApiController {/device}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/playlist, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/now-next, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/day, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClientsController {/clients}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id/pairings, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminsController {/admins}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTelemetryController {/telemetry}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telemetry/event, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 1700  - [39m22.02.2026, 19:32:30 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+Backend running on http://localhost:3000
+C:\Users\nikot\Desktop\play\apps\backend:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @iptv/backend@0.1.0 dev: `tsx watch --tsconfig tsconfig.json src/main.ts`
+Exit status 4294967295

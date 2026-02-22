@@ -1,0 +1,48 @@
+{
+  "name": "@iptv/backend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "tsx watch --tsconfig tsconfig.json src/main.ts",
+    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "lint": "eslint \"src/**/*.ts\" \"prisma/**/*.ts\"",
+    "test": "node -e \"console.log('No automated tests yet for backend')\"",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "prisma:seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@iptv/core": "workspace:*",
+    "@nestjs/common": "^10.4.15",
+    "@nestjs/config": "^3.3.0",
+    "@nestjs/core": "^10.4.15",
+    "@nestjs/jwt": "^10.2.0",
+    "@nestjs/passport": "^10.0.3",
+    "@nestjs/platform-express": "^10.4.15",
+    "@nestjs/swagger": "^7.4.2",
+    "@nestjs/throttler": "^6.2.1",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^2.4.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "nodemailer": "^8.0.1",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1",
+    "sax": "^1.4.3"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.2",
+    "@types/nodemailer": "^7.0.11",
+    "@types/passport-jwt": "^4.0.1",
+    "@types/sax": "^1.2.7",
+    "prisma": "^5.22.0",
+    "tsx": "^4.19.2"
+  }
+}
