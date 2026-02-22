@@ -792,12 +792,36 @@ export class PlaylistService {
   }
 
   async getChannelsForDevice(deviceId: string): Promise<Channel[]> {
-    const device = await this.prisma.device.findUnique({ where: { id: deviceId } });
+    const device = await this.prisma.device.findUnique({
+      where: { id: deviceId },
+      select: {
+        id: true,
+        userId: true,
+        playlistMode: true,
+        customPlaylistId: true
+      }
+    });
     if (!device?.userId) {
       throw new NotFoundException('Устройство не привязано');
     }
 
-    return this.getChannelsForUser(device.userId);
+    const { channels, activeCustomPlaylistId } = await this.getChannelsForUserWithoutCustom(device.userId);
+    const mode = (device.playlistMode ?? 'GLOBAL').toUpperCase();
+
+    if (mode === 'SOURCE') {
+      return channels;
+    }
+
+    if (mode === 'CUSTOM') {
+      return this.applyActiveCustomPlaylist(
+        device.userId,
+        channels,
+        device.customPlaylistId ?? null,
+        false
+      );
+    }
+
+    return this.applyActiveCustomPlaylist(device.userId, channels, activeCustomPlaylistId, true);
   }
 
   async getChannelsForUser(userId: string): Promise<Channel[]> {
@@ -820,7 +844,8 @@ export class PlaylistService {
   private async applyActiveCustomPlaylist(
     userId: string,
     sourceChannels: Channel[],
-    activeCustomPlaylistId: string | null
+    activeCustomPlaylistId: string | null,
+    clearMissingSourceSetting = true
   ): Promise<Channel[]> {
     if (!activeCustomPlaylistId) {
       return sourceChannels;
@@ -837,6 +862,9 @@ export class PlaylistService {
     });
 
     if (!customPlaylist) {
+      if (!clearMissingSourceSetting) {
+        return sourceChannels;
+      }
       await this.prisma.playlistSource.updateMany({
         where: {
           userId,

@@ -1,14 +1,41 @@
-import { Inject, Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Inject,
+  Injectable,
+  NotFoundException
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PairingStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import type { PairStartDto } from './dto/pair-start.dto';
 
+const PLAYLIST_MODES = ['GLOBAL', 'SOURCE', 'CUSTOM'] as const;
+type DevicePlaylistMode = (typeof PLAYLIST_MODES)[number];
+
+interface DevicePlaylistAssignment {
+  playlistMode: DevicePlaylistMode;
+  customPlaylistId: string | null;
+}
+
 export interface PairingStartResponse {
   code: string;
   expiresAt: string;
   pollIntervalSec: number;
+}
+
+export interface PairedDeviceListItem {
+  id: string;
+  name: string;
+  platform: string;
+  pairedAt: string | null;
+  lastSeenAt: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  playlistMode: DevicePlaylistMode;
+  customPlaylistId: string | null;
+  customPlaylistName: string | null;
 }
 
 @Injectable()
@@ -48,14 +75,20 @@ export class DevicesService {
     };
   }
 
-  async confirmPairing(code: string, userId: string, clientId?: string): Promise<{ success: true }> {
+  async confirmPairing(
+    code: string,
+    userId: string,
+    clientId?: string,
+    playlistMode?: string,
+    customPlaylistId?: string
+  ): Promise<{ success: true }> {
     const pairing = await this.prisma.pairingSession.findUnique({
       where: { code },
       include: { device: true }
     });
 
     if (!pairing) {
-      throw new NotFoundException('Код привязки не найден');
+      throw new NotFoundException('Pairing code not found');
     }
 
     if (pairing.expiresAt.getTime() < Date.now()) {
@@ -63,11 +96,11 @@ export class DevicesService {
         where: { id: pairing.id },
         data: { status: PairingStatus.EXPIRED }
       });
-      throw new ConflictException('Срок действия кода привязки истек');
+      throw new ConflictException('Pairing code is expired');
     }
 
     if (pairing.status === PairingStatus.PAIRED) {
-      throw new ConflictException('Код привязки уже использован');
+      throw new ConflictException('Pairing code is already used');
     }
 
     let assignedClientId: string | null = null;
@@ -93,18 +126,23 @@ export class DevicesService {
       });
 
       if (!client) {
-        throw new NotFoundException('Клиент не найден');
+        throw new NotFoundException('Client not found');
       }
 
       if (client.devices.length >= client.devicesAllowed) {
         throw new ConflictException(
-          `Для клиента достигнут лимит устройств (${client.devicesAllowed}). Увеличьте лимит в админке.`
+          `Client reached devices limit (${client.devicesAllowed}). Increase limit in admin.`
         );
       }
 
       assignedClientId = client.id;
     }
 
+    const assignment = await this.resolveDevicePlaylistAssignment(
+      userId,
+      playlistMode,
+      customPlaylistId
+    );
     const deviceToken = pairing.device.deviceToken ?? randomBytes(32).toString('base64url');
 
     await this.prisma.$transaction([
@@ -114,7 +152,9 @@ export class DevicesService {
           userId,
           pairedAt: new Date(),
           deviceToken,
-          clientId: assignedClientId
+          clientId: assignedClientId,
+          playlistMode: assignment.playlistMode,
+          customPlaylistId: assignment.customPlaylistId
         }
       }),
       this.prisma.pairingSession.update({
@@ -142,7 +182,7 @@ export class DevicesService {
     });
 
     if (!pairing) {
-      throw new NotFoundException('Код привязки не найден');
+      throw new NotFoundException('Pairing code not found');
     }
 
     if (pairing.expiresAt.getTime() < Date.now() && pairing.status === PairingStatus.PENDING) {
@@ -169,8 +209,172 @@ export class DevicesService {
     };
   }
 
+  async listPairedDevicesForUser(userId: string): Promise<PairedDeviceListItem[]> {
+    const [devices, customPlaylists] = await Promise.all([
+      this.prisma.device.findMany({
+        where: {
+          userId,
+          pairedAt: {
+            not: null
+          }
+        },
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+        select: {
+          id: true,
+          name: true,
+          platform: true,
+          pairedAt: true,
+          lastSeenAt: true,
+          playlistMode: true,
+          customPlaylistId: true,
+          client: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true
+            }
+          }
+        }
+      }),
+      this.prisma.customPlaylist.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          name: true
+        }
+      })
+    ]);
+
+    const customNameById = new Map(customPlaylists.map((row) => [row.id, row.name] as const));
+    return devices.map((device) => {
+      const mode = this.normalizeDevicePlaylistMode(device.playlistMode);
+      const customId = mode === 'CUSTOM' ? device.customPlaylistId : null;
+      const customName = customId ? (customNameById.get(customId) ?? null) : null;
+      const clientName = device.client
+        ? `${device.client.lastName} ${device.client.firstName}`.trim()
+        : null;
+
+      return {
+        id: device.id,
+        name: device.name,
+        platform: device.platform,
+        pairedAt: device.pairedAt?.toISOString() ?? null,
+        lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
+        clientId: device.client?.id ?? null,
+        clientName,
+        playlistMode: mode,
+        customPlaylistId: customId,
+        customPlaylistName: customName
+      };
+    });
+  }
+
+  async updateDevicePlaylistForUser(
+    userId: string,
+    deviceId: string,
+    playlistMode?: string,
+    customPlaylistId?: string
+  ): Promise<PairedDeviceListItem> {
+    const device = await this.prisma.device.findFirst({
+      where: {
+        id: deviceId,
+        userId,
+        pairedAt: {
+          not: null
+        }
+      },
+      select: {
+        id: true,
+        playlistMode: true,
+        customPlaylistId: true
+      }
+    });
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const effectiveMode =
+      playlistMode ??
+      (customPlaylistId !== undefined ? 'CUSTOM' : this.normalizeDevicePlaylistMode(device.playlistMode));
+    const effectiveCustomPlaylistId =
+      customPlaylistId !== undefined ? customPlaylistId : (device.customPlaylistId ?? undefined);
+
+    const assignment = await this.resolveDevicePlaylistAssignment(
+      userId,
+      effectiveMode,
+      effectiveCustomPlaylistId
+    );
+
+    await this.prisma.device.update({
+      where: { id: device.id },
+      data: {
+        playlistMode: assignment.playlistMode,
+        customPlaylistId: assignment.customPlaylistId
+      }
+    });
+
+    const rows = await this.listPairedDevicesForUser(userId);
+    const updated = rows.find((row) => row.id === device.id);
+    if (!updated) {
+      throw new NotFoundException('Device not found');
+    }
+
+    return updated;
+  }
+
   async getDeviceById(id: string) {
     return this.prisma.device.findUnique({ where: { id } });
+  }
+
+  private async resolveDevicePlaylistAssignment(
+    userId: string,
+    playlistMode?: string,
+    customPlaylistId?: string
+  ): Promise<DevicePlaylistAssignment> {
+    const mode = this.normalizeDevicePlaylistMode(playlistMode);
+
+    if (mode === 'GLOBAL' || mode === 'SOURCE') {
+      return {
+        playlistMode: mode,
+        customPlaylistId: null
+      };
+    }
+
+    const customId = customPlaylistId?.trim();
+    if (!customId) {
+      throw new BadRequestException('customPlaylistId is required when playlistMode=CUSTOM');
+    }
+
+    const exists = await this.prisma.customPlaylist.findFirst({
+      where: {
+        id: customId,
+        userId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!exists) {
+      throw new NotFoundException('Custom playlist not found');
+    }
+
+    return {
+      playlistMode: 'CUSTOM',
+      customPlaylistId: customId
+    };
+  }
+
+  private normalizeDevicePlaylistMode(rawMode?: string): DevicePlaylistMode {
+    const normalized = (rawMode ?? 'GLOBAL').toUpperCase();
+    if (normalized === 'SOURCE') {
+      return 'SOURCE';
+    }
+    if (normalized === 'CUSTOM') {
+      return 'CUSTOM';
+    }
+    return 'GLOBAL';
   }
 
   private async generateUniqueCode(): Promise<string> {
@@ -187,6 +391,6 @@ export class DevicesService {
       }
     }
 
-    throw new Error('Не удалось сгенерировать уникальный код привязки');
+    throw new Error('Failed to generate unique pairing code');
   }
 }

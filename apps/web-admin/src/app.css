@@ -711,6 +711,86 @@ body,
   color: rgba(216, 236, 255, 0.9);
 }
 
+.wa-base-devices {
+  margin-top: 26px;
+  display: grid;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(116, 179, 248, 0.34);
+  border-radius: 12px;
+  background: rgba(7, 29, 78, 0.78);
+}
+
+.wa-base-devices-title {
+  margin: 0;
+  font-size: 24px;
+  color: #f0f8ff;
+}
+
+.wa-base-devices-text {
+  margin: 0;
+  color: rgba(216, 236, 255, 0.92);
+}
+
+.wa-base-devices-form {
+  display: grid;
+  gap: 10px;
+}
+
+.wa-base-devices-list {
+  margin-top: 8px;
+}
+
+.wa-base-devices-list-title {
+  margin: 0 0 8px;
+  color: #dff0ff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.wa-base-devices-list-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.wa-base-devices-item {
+  display: grid;
+  gap: 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(116, 179, 248, 0.38);
+  background: rgba(8, 33, 88, 0.62);
+  padding: 10px;
+}
+
+.wa-base-devices-item-name {
+  margin: 0;
+  font-size: 16px;
+  color: #edf8ff;
+  font-weight: 700;
+}
+
+.wa-base-devices-item-meta {
+  margin: 0;
+  color: rgba(216, 236, 255, 0.9);
+  font-size: 13px;
+}
+
+.wa-base-devices-empty {
+  display: grid;
+  gap: 12px;
+  justify-items: start;
+  padding: 12px;
+  border: 1px solid rgba(114, 177, 246, 0.42);
+  border-radius: 10px;
+  background: rgba(8, 31, 84, 0.64);
+}
+
+.wa-base-devices-empty-text {
+  margin: 0;
+  color: rgba(223, 239, 255, 0.96);
+  font-size: 16px;
+}
+
 .wa-base-tile {
   --wa-icon-color: #90a5cf;
   --wa-title-color: #d9e9ff;

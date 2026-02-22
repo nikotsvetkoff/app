@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Inject, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Query,
+  UseGuards
+} from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DevicesService } from './devices.service';
@@ -6,6 +17,7 @@ import { PairStartDto } from './dto/pair-start.dto';
 import { PairConfirmDto } from './dto/pair-confirm.dto';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser } from '../common/request-context';
+import { UpdateDevicePlaylistDto } from './dto/update-device-playlist.dto';
 
 @ApiTags('devices')
 @Controller('devices')
@@ -23,12 +35,41 @@ export class DevicesController {
   @Throttle({ default: { limit: 30, ttl: 60000 } })
   @Post('pair/confirm')
   confirm(@Body() dto: PairConfirmDto, @CurrentUser() user: { sub: string }) {
-    return this.devicesService.confirmPairing(dto.code.toUpperCase(), user.sub, dto.clientId);
+    return this.devicesService.confirmPairing(
+      dto.code.toUpperCase(),
+      user.sub,
+      dto.clientId,
+      dto.playlistMode,
+      dto.customPlaylistId
+    );
   }
 
   @Throttle({ default: { limit: 120, ttl: 60000 } })
   @Get('pair/status')
   status(@Query('code') code: string) {
     return this.devicesService.getPairingStatus((code ?? '').toUpperCase());
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Get()
+  listForUser(@CurrentUser() user: { sub: string }) {
+    return this.devicesService.listPairedDevicesForUser(user.sub);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/playlist')
+  updateDevicePlaylist(
+    @CurrentUser() user: { sub: string },
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: UpdateDevicePlaylistDto
+  ) {
+    return this.devicesService.updateDevicePlaylistForUser(
+      user.sub,
+      id,
+      dto.playlistMode,
+      dto.customPlaylistId
+    );
   }
 }

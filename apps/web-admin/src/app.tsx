@@ -17,6 +17,7 @@ const REMEMBER_ME_KEY = 'iptv:web-admin:remember-me';
 const REGISTER_RESEND_COOLDOWN_SEC = 60;
 
 type StatusTone = 'idle' | 'ok' | 'error';
+type DevicePlaylistMode = 'GLOBAL' | 'SOURCE' | 'CUSTOM';
 type FocusTopic =
   | 'account'
   | 'admins'
@@ -48,6 +49,19 @@ interface PairingHistoryItem {
   platform: string;
   pairedAt: string;
   lastSeenAt: string | null;
+}
+
+interface PairedDeviceItem {
+  id: string;
+  name: string;
+  platform: string;
+  pairedAt: string | null;
+  lastSeenAt: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  playlistMode: DevicePlaylistMode;
+  customPlaylistId: string | null;
+  customPlaylistName: string | null;
 }
 
 interface AdminItem {
@@ -118,7 +132,7 @@ const HELP_TEXT: Record<FocusTopic, string> = {
   clients:
     'Клиент добавляется один раз, затем выбирается для каждой новой привязки устройств.',
   pairing:
-    'Введите код с плеера и подтвердите привязку для выбранного клиента.',
+    'Введите код с плеера, выберите клиента и режим плейлиста для устройства (global/source/custom).',
   history:
     'История показывает каждую подтвержденную привязку для выбранного клиента: код, устройство и дата.',
   sources:
@@ -413,9 +427,15 @@ export const App: React.FC = () => {
 
   const [clients, setClients] = useState<ClientItem[]>([]);
   const [admins, setAdmins] = useState<AdminItem[]>([]);
+  const [pairedDevices, setPairedDevices] = useState<PairedDeviceItem[]>([]);
+  const [devicePlaylistDrafts, setDevicePlaylistDrafts] = useState<
+    Record<string, { mode: DevicePlaylistMode; customPlaylistId: string }>
+  >({});
   const [selectedClientId, setSelectedClientId] = useState('');
   const [pairingHistory, setPairingHistory] = useState<PairingHistoryItem[]>([]);
   const [pairCode, setPairCode] = useState(() => getPairCodeFromUrl());
+  const [pairPlaylistMode, setPairPlaylistMode] = useState<DevicePlaylistMode>('GLOBAL');
+  const [pairCustomPlaylistId, setPairCustomPlaylistId] = useState('');
   const [editingClientId, setEditingClientId] = useState('');
 
   const [statusMessage, setStatusMessage] = useState('Готово.');
@@ -426,6 +446,7 @@ export const App: React.FC = () => {
   const [clientBusy, setClientBusy] = useState(false);
   const [historyBusy, setHistoryBusy] = useState(false);
   const [adminsBusy, setAdminsBusy] = useState(false);
+  const [devicesBusy, setDevicesBusy] = useState(false);
   const [playlistBusy, setPlaylistBusy] = useState(false);
   const [landingAuthOpen, setLandingAuthOpen] = useState(false);
   const [landingActiveTile, setLandingActiveTile] = useState<LandingTile>('how');
@@ -548,6 +569,55 @@ export const App: React.FC = () => {
   }, [playlistChannels, selectedSourceChannelIds]);
 
   useEffect(() => {
+    if (pairPlaylistMode !== 'CUSTOM') {
+      setPairCustomPlaylistId('');
+      return;
+    }
+
+    if (!pairCustomPlaylistId) {
+      return;
+    }
+
+    const exists = customPlaylists.some((playlist) => playlist.id === pairCustomPlaylistId);
+    if (!exists) {
+      setPairCustomPlaylistId('');
+    }
+  }, [customPlaylists, pairCustomPlaylistId, pairPlaylistMode]);
+
+  useEffect(() => {
+    setDevicePlaylistDrafts((current) => {
+      const next: Record<string, { mode: DevicePlaylistMode; customPlaylistId: string }> = {};
+      for (const device of pairedDevices) {
+        const previous = current[device.id];
+        const fallbackMode = device.playlistMode;
+        const fallbackCustomPlaylistId = device.customPlaylistId ?? '';
+        next[device.id] = previous
+          ? {
+              mode: previous.mode,
+              customPlaylistId: previous.customPlaylistId
+            }
+          : {
+              mode: fallbackMode,
+              customPlaylistId: fallbackCustomPlaylistId
+            };
+
+        const draftCustomId = next[device.id].customPlaylistId;
+        if (
+          next[device.id].mode === 'CUSTOM' &&
+          draftCustomId &&
+          !customPlaylists.some((playlist) => playlist.id === draftCustomId)
+        ) {
+          next[device.id] = {
+            mode: 'GLOBAL',
+            customPlaylistId: ''
+          };
+        }
+      }
+      return next;
+    });
+  }, [customPlaylists, pairedDevices]);
+
+  useEffect(() => {
     const closeMobileMenuOnDesktop = () => {
       if (window.innerWidth > 1100) {
         setLandingMenuOpen(false);
@@ -633,6 +703,12 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  const fetchDevices = useCallback((authToken: string): Promise<PairedDeviceItem[]> => {
+    return fetchJson<PairedDeviceItem[]>(`${API_BASE}/devices`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+  }, []);
+
   const fetchPlaylistStatus = useCallback((authToken: string): Promise<PlaylistStatusItem> => {
     return fetchJson<PlaylistStatusItem>(`${API_BASE}/playlist/status`, {
       headers: { Authorization: `Bearer ${authToken}` }
@@ -714,6 +790,22 @@ export const App: React.FC = () => {
       }
     },
     [fetchAdmins, reportError, requireToken]
+  );
+
+  const loadDevices = useCallback(
+    async (overrideToken?: string): Promise<void> => {
+      setDevicesBusy(true);
+      try {
+        const authToken = requireToken(overrideToken);
+        const rows = await fetchDevices(authToken);
+        setPairedDevices(rows);
+      } catch (error) {
+        reportError(error);
+      } finally {
+        setDevicesBusy(false);
+      }
+    },
+    [fetchDevices, reportError, requireToken]
   );
 
   const loadCustomPlaylistEditor = useCallback(
@@ -821,6 +913,8 @@ export const App: React.FC = () => {
       setLandingSubscribersPageOpen(false);
       setClients([]);
       setAdmins([]);
+      setPairedDevices([]);
+      setDevicePlaylistDrafts({});
       setPlaylistStatus(null);
       setBasePlaylists([]);
       setPlaylistChannels([]);
@@ -834,12 +928,15 @@ export const App: React.FC = () => {
       setSelectedClientId('');
       setEditingClientId('');
       setPairingHistory([]);
+      setPairPlaylistMode('GLOBAL');
+      setPairCustomPlaylistId('');
       return;
     }
     void loadClients(token);
     void loadAdmins(token);
+    void loadDevices(token);
     void loadPlaylistWorkspace(token);
-  }, [clearCustomPlaylistEditor, loadAdmins, loadClients, loadPlaylistWorkspace, token]);
+  }, [clearCustomPlaylistEditor, loadAdmins, loadClients, loadDevices, loadPlaylistWorkspace, token]);
 
   useEffect(() => {
     if (!token || !selectedClientId) {
@@ -1356,6 +1453,9 @@ export const App: React.FC = () => {
       if (!selectedClientId) {
         throw new Error('Выберите клиента перед привязкой.');
       }
+      if (pairPlaylistMode === 'CUSTOM' && !pairCustomPlaylistId) {
+        throw new Error('Выберите custom-плейлист для устройства.');
+      }
 
       const authToken = requireToken();
       await fetchJson<{ success: true }>(`${API_BASE}/devices/pair/confirm`, {
@@ -1363,18 +1463,86 @@ export const App: React.FC = () => {
         headers: { Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           code: normalizedCode,
-          clientId: selectedClientId
+          clientId: selectedClientId,
+          playlistMode: pairPlaylistMode,
+          customPlaylistId: pairPlaylistMode === 'CUSTOM' ? pairCustomPlaylistId : undefined
         })
       });
 
       await syncClients(authToken, selectedClientId);
       await loadPairingHistory(authToken, selectedClientId);
+      await loadDevices(authToken);
       setPairCode('');
+      setPairPlaylistMode('GLOBAL');
+      setPairCustomPlaylistId('');
       setStatusTone('ok');
       setStatusMessage('Привязка подтверждена для выбранного клиента.');
       setFocusTopic('pairing');
     } catch (error) {
       reportError(error);
+    }
+  };
+
+  const getDevicePlaylistDraft = (
+    device: PairedDeviceItem
+  ): { mode: DevicePlaylistMode; customPlaylistId: string } => {
+    return (
+      devicePlaylistDrafts[device.id] ?? {
+        mode: device.playlistMode,
+        customPlaylistId: device.customPlaylistId ?? ''
+      }
+    );
+  };
+
+  const setDevicePlaylistModeDraft = (deviceId: string, mode: DevicePlaylistMode): void => {
+    setDevicePlaylistDrafts((current) => ({
+      ...current,
+      [deviceId]: {
+        mode,
+        customPlaylistId: mode === 'CUSTOM' ? (current[deviceId]?.customPlaylistId ?? '') : ''
+      }
+    }));
+  };
+
+  const setDeviceCustomPlaylistDraft = (deviceId: string, customPlaylistId: string): void => {
+    setDevicePlaylistDrafts((current) => ({
+      ...current,
+      [deviceId]: {
+        mode: current[deviceId]?.mode ?? 'CUSTOM',
+        customPlaylistId
+      }
+    }));
+  };
+
+  const saveDevicePlaylistAssignment = async (device: PairedDeviceItem): Promise<void> => {
+    const draft = getDevicePlaylistDraft(device);
+    if (draft.mode === 'CUSTOM' && !draft.customPlaylistId) {
+      setStatusTone('error');
+      setStatusMessage('Для режима CUSTOM выберите плейлист.');
+      setFocusTopic('pairing');
+      return;
+    }
+
+    try {
+      const authToken = requireToken();
+      setDevicesBusy(true);
+      await fetchJson<PairedDeviceItem>(`${API_BASE}/devices/${device.id}/playlist`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          playlistMode: draft.mode,
+          customPlaylistId: draft.mode === 'CUSTOM' ? draft.customPlaylistId : undefined
+        })
+      });
+
+      await loadDevices(authToken);
+      setStatusTone('ok');
+      setStatusMessage(`Плейлист устройства обновлен: ${device.name}.`);
+      setFocusTopic('pairing');
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setDevicesBusy(false);
     }
   };
 
@@ -1888,6 +2056,12 @@ export const App: React.FC = () => {
     setLandingPlaylistsPageOpen(false);
     setLandingSubscribersPageOpen(false);
     setEditingClientId('');
+
+    if (tile === 'devices' && token) {
+      void loadDevices(token);
+      void loadClients(token, selectedClientId);
+      setFocusTopic('pairing');
+    }
   };
 
   const openLandingHome = (): void => {
@@ -2663,6 +2837,186 @@ export const App: React.FC = () => {
                   <span className="wa-base-tile-label">как это работает</span>
                 </button>
               </main>
+
+              {landingActiveTile === 'devices' ? (
+                <section className="wa-base-devices" aria-label="Устройства">
+                  <h2 className="wa-base-devices-title">Устройства и Pair</h2>
+                  <p className="wa-base-devices-text">
+                    Введите код с телефона/TV, выберите абонента и плейлист для нового устройства.
+                  </p>
+
+                  {token ? (
+                    <>
+                      <div className="wa-base-devices-form">
+                        <label className="wa-row">
+                          <span className="wa-label">Абонент</span>
+                          <select
+                            className="wa-input"
+                            value={selectedClientId}
+                            onChange={(event) => setSelectedClientId(event.target.value)}
+                          >
+                            <option value="">Выберите абонента</option>
+                            {clients.map((client) => (
+                              <option key={client.id} value={client.id}>
+                                {client.lastName} {client.firstName} ({client.phone})
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="wa-row">
+                          <span className="wa-label">Код Pair</span>
+                          <input
+                            className="wa-input"
+                            value={pairCode}
+                            onChange={(event) => setPairCode(event.target.value.toUpperCase())}
+                            placeholder="A1B2C3"
+                            maxLength={8}
+                          />
+                        </label>
+
+                        <label className="wa-row">
+                          <span className="wa-label">Плейлист для нового устройства</span>
+                          <select
+                            className="wa-input"
+                            value={pairPlaylistMode}
+                            onChange={(event) => setPairPlaylistMode(event.target.value as DevicePlaylistMode)}
+                          >
+                            <option value="GLOBAL">GLOBAL (как в настройке системы)</option>
+                            <option value="SOURCE">SOURCE (только исходный список)</option>
+                            <option value="CUSTOM">CUSTOM (выбрать из списка)</option>
+                          </select>
+                        </label>
+
+                        {pairPlaylistMode === 'CUSTOM' ? (
+                          <label className="wa-row">
+                            <span className="wa-label">Custom-плейлист</span>
+                            <select
+                              className="wa-input"
+                              value={pairCustomPlaylistId}
+                              onChange={(event) => setPairCustomPlaylistId(event.target.value)}
+                            >
+                              <option value="">Выберите custom-плейлист</option>
+                              {customPlaylists.map((playlist) => (
+                                <option key={playlist.id} value={playlist.id}>
+                                  {playlist.name} ({playlist.channelsCount} каналов)
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                        ) : null}
+
+                        <div className="wa-row wa-row--actions">
+                          <span className="wa-label">Действия</span>
+                          <div className="wa-actions">
+                            <button type="button" className="wa-btn wa-btn--primary" onClick={() => void confirmPair()}>
+                              Подтвердить Pair
+                            </button>
+                            <button
+                              type="button"
+                              className="wa-btn"
+                              onClick={() => void loadDevices()}
+                              disabled={devicesBusy}
+                            >
+                              {devicesBusy ? 'Обновление...' : 'Обновить устройства'}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="wa-base-devices-list">
+                        <p className="wa-base-devices-list-title">Подключенные устройства</p>
+                        {pairedDevices.length === 0 ? (
+                          <p className="wa-empty">Пока нет подключенных устройств.</p>
+                        ) : (
+                          <div className="wa-base-devices-list-grid">
+                            {pairedDevices.map((device) => {
+                              const draft = getDevicePlaylistDraft(device);
+                              const hasDraftChanges =
+                                draft.mode !== device.playlistMode ||
+                                (draft.mode === 'CUSTOM'
+                                  ? draft.customPlaylistId !== (device.customPlaylistId ?? '')
+                                  : false);
+
+                              return (
+                                <article key={device.id} className="wa-base-devices-item">
+                                  <p className="wa-base-devices-item-name">{device.name}</p>
+                                  <p className="wa-base-devices-item-meta">
+                                    {device.platform} | {device.clientName || 'без абонента'}
+                                  </p>
+                                  <p className="wa-base-devices-item-meta">
+                                    Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
+                                  </p>
+                                  <p className="wa-base-devices-item-meta">
+                                    Текущий режим: {device.playlistMode}
+                                    {device.customPlaylistName ? ` (${device.customPlaylistName})` : ''}
+                                  </p>
+
+                                  <label className="wa-row">
+                                    <span className="wa-label">Режим</span>
+                                    <select
+                                      className="wa-input"
+                                      value={draft.mode}
+                                      onChange={(event) =>
+                                        setDevicePlaylistModeDraft(
+                                          device.id,
+                                          event.target.value as DevicePlaylistMode
+                                        )
+                                      }
+                                    >
+                                      <option value="GLOBAL">GLOBAL</option>
+                                      <option value="SOURCE">SOURCE</option>
+                                      <option value="CUSTOM">CUSTOM</option>
+                                    </select>
+                                  </label>
+
+                                  {draft.mode === 'CUSTOM' ? (
+                                    <label className="wa-row">
+                                      <span className="wa-label">Custom-плейлист</span>
+                                      <select
+                                        className="wa-input"
+                                        value={draft.customPlaylistId}
+                                        onChange={(event) =>
+                                          setDeviceCustomPlaylistDraft(device.id, event.target.value)
+                                        }
+                                      >
+                                        <option value="">Выберите custom-плейлист</option>
+                                        {customPlaylists.map((playlist) => (
+                                          <option key={playlist.id} value={playlist.id}>
+                                            {playlist.name} ({playlist.channelsCount} каналов)
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </label>
+                                  ) : null}
+
+                                  <div className="wa-actions">
+                                    <button
+                                      type="button"
+                                      className="wa-btn wa-btn--primary"
+                                      onClick={() => void saveDevicePlaylistAssignment(device)}
+                                      disabled={devicesBusy || !hasDraftChanges}
+                                    >
+                                      Сохранить
+                                    </button>
+                                  </div>
+                                </article>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    <div className="wa-base-devices-empty">
+                      <p className="wa-base-devices-empty-text">Для управления устройствами нужен вход администратора.</p>
+                      <button type="button" className="wa-base-auth-btn wa-base-auth-btn--primary" onClick={openLandingAuth}>
+                        Вход администратора
+                      </button>
+                    </div>
+                  )}
+                </section>
+              ) : null}
 
               {landingActiveTile === 'how' ? (
                 <section className="wa-base-guide" aria-label="README как это работает">

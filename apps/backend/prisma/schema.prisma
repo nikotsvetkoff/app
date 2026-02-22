@@ -64,6 +64,8 @@ model Device {
   name            String
   platform        String
   deviceToken     String?          @unique
+  playlistMode    String           @default("GLOBAL")
+  customPlaylistId String?
   pairedAt        DateTime?
   lastSeenAt      DateTime?
   createdAt       DateTime         @default(now())
@@ -77,6 +79,8 @@ model Device {
 
   @@index([userId])
   @@index([clientId])
+  @@index([playlistMode])
+  @@index([customPlaylistId])
 }
 
 model PairingSession {

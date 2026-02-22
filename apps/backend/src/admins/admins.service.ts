@@ -59,6 +59,7 @@ export class AdminsService {
       clientsCount,
       devicesCount,
       playlistSourcesCount,
+      basePlaylistsCount,
       epgSourcesCount,
       ottProvidersCount,
       ottChannelsCount,
@@ -71,6 +72,9 @@ export class AdminsService {
         where: { userId: targetAdminId }
       }),
       this.prisma.playlistSource.count({
+        where: { userId: targetAdminId }
+      }),
+      this.prisma.basePlaylist.count({
         where: { userId: targetAdminId }
       }),
       this.prisma.epgSource.count({
@@ -91,6 +95,7 @@ export class AdminsService {
       clientsCount > 0 ||
       devicesCount > 0 ||
       playlistSourcesCount > 0 ||
+      basePlaylistsCount > 0 ||
       epgSourcesCount > 0 ||
       ottProvidersCount > 0 ||
       ottChannelsCount > 0 ||
