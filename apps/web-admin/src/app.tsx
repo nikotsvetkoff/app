@@ -18,6 +18,7 @@ const REGISTER_RESEND_COOLDOWN_SEC = 60;
 
 type StatusTone = 'idle' | 'ok' | 'error';
 type DevicePlaylistMode = 'GLOBAL' | 'SOURCE' | 'CUSTOM';
+type AdminSortMode = 'newest' | 'oldest' | 'email';
 type FocusTopic =
   | 'account'
   | 'admins'
@@ -39,16 +40,6 @@ interface ClientItem {
   pairedDevices: number;
   createdAt: string;
   updatedAt: string;
-}
-
-interface PairingHistoryItem {
-  pairingId: string;
-  code: string;
-  deviceId: string;
-  deviceName: string;
-  platform: string;
-  pairedAt: string;
-  lastSeenAt: string | null;
 }
 
 interface PairedDeviceItem {
@@ -300,6 +291,96 @@ const sortClients = (rows: ClientItem[]): ClientItem[] => {
   });
 };
 
+const parseDateMs = (value: string): number => {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const sortAdminsByNewest = (rows: AdminItem[]): AdminItem[] => {
+  return [...rows].sort((left, right) => {
+    const byDate = parseDateMs(right.createdAt) - parseDateMs(left.createdAt);
+    if (byDate !== 0) {
+      return byDate;
+    }
+    return left.email.localeCompare(right.email, 'ru', { sensitivity: 'base' });
+  });
+};
+
+const isEmailLike = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+const validateAdminEmailRequired = (rawValue: string): string => {
+  const normalized = rawValue.trim().toLowerCase();
+  if (!normalized) {
+    return 'Введите email нового администратора.';
+  }
+  if (!isEmailLike(normalized)) {
+    return 'Введите корректный email нового администратора.';
+  }
+  return '';
+};
+
+const validateAdminPasswordRequired = (rawValue: string): string => {
+  if (rawValue.trim().length < 8) {
+    return 'Пароль нового администратора должен содержать минимум 8 символов.';
+  }
+  return '';
+};
+
+const validateAdminCodeRequired = (rawValue: string): string => {
+  const normalized = rawValue.trim();
+  if (!normalized) {
+    return 'Введите код подтверждения.';
+  }
+  if (!/^\d{8}$/.test(normalized)) {
+    return 'Введите 8-значный код нового администратора.';
+  }
+  return '';
+};
+
+const validateEmailRequired = (rawValue: string, requiredMessage: string, invalidMessage: string): string => {
+  const normalized = rawValue.trim().toLowerCase();
+  if (!normalized) {
+    return requiredMessage;
+  }
+  if (!isEmailLike(normalized)) {
+    return invalidMessage;
+  }
+  return '';
+};
+
+const validatePasswordMinLength = (rawValue: string, requiredMessage: string): string => {
+  if (rawValue.trim().length < 8) {
+    return requiredMessage;
+  }
+  return '';
+};
+
+const validatePasswordConfirm = (
+  password: string,
+  passwordConfirm: string,
+  emptyMessage: string,
+  mismatchMessage: string
+): string => {
+  if (!passwordConfirm) {
+    return emptyMessage;
+  }
+  if (password !== passwordConfirm) {
+    return mismatchMessage;
+  }
+  return '';
+};
+
+const validateCode8Digits = (rawValue: string, emptyMessage: string, invalidMessage: string): string => {
+  const normalized = rawValue.trim();
+  if (!normalized) {
+    return emptyMessage;
+  }
+  if (!/^\d{8}$/.test(normalized)) {
+    return invalidMessage;
+  }
+  return '';
+};
+
 const normalizeErrorMessage = (error: unknown): string => {
   if (!(error instanceof Error)) {
     return 'Request failed';
@@ -402,6 +483,23 @@ export const App: React.FC = () => {
   const [newAdminPassword, setNewAdminPassword] = useState('');
   const [newAdminCode, setNewAdminCode] = useState('');
   const [newAdminResendCooldownSec, setNewAdminResendCooldownSec] = useState(0);
+  const [adminSearchQuery, setAdminSearchQuery] = useState('');
+  const [adminSortMode, setAdminSortMode] = useState<AdminSortMode>('newest');
+  const [copiedAdminEmail, setCopiedAdminEmail] = useState('');
+  const [pendingAdminEmailForConfirm, setPendingAdminEmailForConfirm] = useState('');
+  const [lastConfirmedAdminEmail, setLastConfirmedAdminEmail] = useState('');
+  const [newAdminEmailError, setNewAdminEmailError] = useState('');
+  const [newAdminPasswordError, setNewAdminPasswordError] = useState('');
+  const [newAdminCodeError, setNewAdminCodeError] = useState('');
+  const [loginEmailError, setLoginEmailError] = useState('');
+  const [loginPasswordError, setLoginPasswordError] = useState('');
+  const [registerEmailError, setRegisterEmailError] = useState('');
+  const [registerPasswordError, setRegisterPasswordError] = useState('');
+  const [registerPasswordConfirmError, setRegisterPasswordConfirmError] = useState('');
+  const [registerCodeError, setRegisterCodeError] = useState('');
+  const [forgotEmailError, setForgotEmailError] = useState('');
+  const [resetPasswordError, setResetPasswordError] = useState('');
+  const [resetPasswordConfirmError, setResetPasswordConfirmError] = useState('');
 
   const [clientFirstName, setClientFirstName] = useState('');
   const [clientLastName, setClientLastName] = useState('');
@@ -411,7 +509,6 @@ export const App: React.FC = () => {
 
   const [playlistSourceName, setPlaylistSourceName] = useState('');
   const [playlistUrl, setPlaylistUrl] = useState('');
-  const [epgUrl, setEpgUrl] = useState('https://epg.ott-play.com');
   const [playlistStatus, setPlaylistStatus] = useState<PlaylistStatusItem | null>(null);
   const [basePlaylists, setBasePlaylists] = useState<BasePlaylistItem[]>([]);
   const [playlistChannels, setPlaylistChannels] = useState<PlaylistChannelItem[]>([]);
@@ -432,7 +529,6 @@ export const App: React.FC = () => {
     Record<string, { mode: DevicePlaylistMode; customPlaylistId: string }>
   >({});
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [pairingHistory, setPairingHistory] = useState<PairingHistoryItem[]>([]);
   const [pairCode, setPairCode] = useState(() => getPairCodeFromUrl());
   const [pairPlaylistMode, setPairPlaylistMode] = useState<DevicePlaylistMode>('GLOBAL');
   const [pairCustomPlaylistId, setPairCustomPlaylistId] = useState('');
@@ -444,7 +540,6 @@ export const App: React.FC = () => {
   const [clockLabel, setClockLabel] = useState(() => formatClock());
   const [tokenRevision, setTokenRevision] = useState(0);
   const [clientBusy, setClientBusy] = useState(false);
-  const [historyBusy, setHistoryBusy] = useState(false);
   const [adminsBusy, setAdminsBusy] = useState(false);
   const [devicesBusy, setDevicesBusy] = useState(false);
   const [playlistBusy, setPlaylistBusy] = useState(false);
@@ -523,6 +618,60 @@ export const App: React.FC = () => {
     () => !areStringArraysEqual(customDraftChannelIds, customSavedChannelIds),
     [customDraftChannelIds, customSavedChannelIds]
   );
+
+  const normalizedNewAdminEmail = useMemo(() => newAdminEmail.trim().toLowerCase(), [newAdminEmail]);
+  const isNewAdminEmailValid = useMemo(() => isEmailLike(normalizedNewAdminEmail), [normalizedNewAdminEmail]);
+  const canRequestNewAdminCode = isNewAdminEmailValid && newAdminPassword.trim().length >= 8;
+  const canResendNewAdminCode = isNewAdminEmailValid && newAdminResendCooldownSec <= 0;
+  const canConfirmNewAdminCode = /^\d{8}$/.test(newAdminCode.trim());
+  const currentAdminEmail = tokenEmail.trim().toLowerCase();
+  const hasPendingAdminVerification = pendingAdminEmailForConfirm.trim().length > 0;
+  const hasConfirmedAdminInWizard = lastConfirmedAdminEmail.trim().length > 0;
+  const canLogin = isEmailLike(email.trim().toLowerCase()) && password.trim().length >= 8;
+  const canSubmitRegister =
+    isEmailLike(registerEmail.trim().toLowerCase()) &&
+    registerPassword.trim().length >= 8 &&
+    registerPassword === registerPasswordConfirm;
+  const canResendRegister = isEmailLike(registerEmail.trim().toLowerCase()) && registerResendCooldownSec <= 0;
+  const canConfirmRegister = /^\d{8}$/.test(registerCode.trim());
+  const forgotTargetEmail = (resetEmail || email).trim().toLowerCase();
+  const canRequestForgotPassword = isEmailLike(forgotTargetEmail);
+  const canSubmitResetPassword =
+    resetToken.trim().length > 0 && resetPassword.trim().length >= 8 && resetPassword === resetPasswordConfirm;
+
+  const adminWizardStep = useMemo<1 | 2 | 3>(() => {
+    if (hasConfirmedAdminInWizard) {
+      return 3;
+    }
+    if (hasPendingAdminVerification) {
+      return 2;
+    }
+    return 1;
+  }, [hasConfirmedAdminInWizard, hasPendingAdminVerification]);
+
+  const filteredAdmins = useMemo(() => {
+    const query = adminSearchQuery.trim().toLowerCase();
+    const rows = query ? admins.filter((admin) => admin.email.toLowerCase().includes(query)) : admins;
+
+    return [...rows].sort((left, right) => {
+      if (adminSortMode === 'email') {
+        return left.email.localeCompare(right.email, 'ru', { sensitivity: 'base' });
+      }
+
+      const leftMs = parseDateMs(left.createdAt);
+      const rightMs = parseDateMs(right.createdAt);
+      const byDate = adminSortMode === 'oldest' ? leftMs - rightMs : rightMs - leftMs;
+      if (byDate !== 0) {
+        return byDate;
+      }
+      return left.email.localeCompare(right.email, 'ru', { sensitivity: 'base' });
+    });
+  }, [adminSearchQuery, adminSortMode, admins]);
+
+  const newestAdminCreatedAt = useMemo(() => {
+    const newest = sortAdminsByNewest(admins)[0];
+    return newest?.createdAt ?? null;
+  }, [admins]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -664,6 +813,20 @@ export const App: React.FC = () => {
   }, [newAdminResendCooldownSec]);
 
   useEffect(() => {
+    if (!copiedAdminEmail) {
+      return;
+    }
+
+    const timer = window.setTimeout(() => {
+      setCopiedAdminEmail('');
+    }, 1500);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [copiedAdminEmail]);
+
+  useEffect(() => {
     const tokenFromResetUrl = getResetTokenFromUrl();
     if (!tokenFromResetUrl) {
       return;
@@ -742,15 +905,6 @@ export const App: React.FC = () => {
     []
   );
 
-  const fetchPairingHistory = useCallback(
-    (authToken: string, clientId: string): Promise<PairingHistoryItem[]> => {
-      return fetchJson<PairingHistoryItem[]>(`${API_BASE}/clients/${clientId}/pairings`, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-    },
-    []
-  );
-
   const syncClients = useCallback(
     async (authToken: string, preferredSelectionId: string): Promise<ClientItem[]> => {
       const rows = sortClients(await fetchClients(authToken));
@@ -782,7 +936,7 @@ export const App: React.FC = () => {
       try {
         const authToken = requireToken(overrideToken);
         const rows = await fetchAdmins(authToken);
-        setAdmins(rows);
+        setAdmins(sortAdminsByNewest(rows));
       } catch (error) {
         reportError(error);
       } finally {
@@ -885,27 +1039,6 @@ export const App: React.FC = () => {
     ]
   );
 
-  const loadPairingHistory = useCallback(
-    async (overrideToken?: string, clientId = selectedClientId): Promise<void> => {
-      if (!clientId) {
-        setPairingHistory([]);
-        return;
-      }
-
-      setHistoryBusy(true);
-      try {
-        const authToken = requireToken(overrideToken);
-        const rows = await fetchPairingHistory(authToken, clientId);
-        setPairingHistory(rows);
-      } catch (error) {
-        reportError(error);
-      } finally {
-        setHistoryBusy(false);
-      }
-    },
-    [fetchPairingHistory, reportError, requireToken, selectedClientId]
-  );
-
   useEffect(() => {
     if (!token) {
       setDashboardOpen(false);
@@ -913,6 +1046,23 @@ export const App: React.FC = () => {
       setLandingSubscribersPageOpen(false);
       setClients([]);
       setAdmins([]);
+      setAdminSearchQuery('');
+      setAdminSortMode('newest');
+      setCopiedAdminEmail('');
+      setPendingAdminEmailForConfirm('');
+      setLastConfirmedAdminEmail('');
+      setNewAdminEmailError('');
+      setNewAdminPasswordError('');
+      setNewAdminCodeError('');
+      setLoginEmailError('');
+      setLoginPasswordError('');
+      setRegisterEmailError('');
+      setRegisterPasswordError('');
+      setRegisterPasswordConfirmError('');
+      setRegisterCodeError('');
+      setForgotEmailError('');
+      setResetPasswordError('');
+      setResetPasswordConfirmError('');
       setPairedDevices([]);
       setDevicePlaylistDrafts({});
       setPlaylistStatus(null);
@@ -927,7 +1077,6 @@ export const App: React.FC = () => {
       setPlaylistSourceSearch('');
       setSelectedClientId('');
       setEditingClientId('');
-      setPairingHistory([]);
       setPairPlaylistMode('GLOBAL');
       setPairCustomPlaylistId('');
       return;
@@ -939,14 +1088,6 @@ export const App: React.FC = () => {
   }, [clearCustomPlaylistEditor, loadAdmins, loadClients, loadDevices, loadPlaylistWorkspace, token]);
 
   useEffect(() => {
-    if (!token || !selectedClientId) {
-      setPairingHistory([]);
-      return;
-    }
-    void loadPairingHistory(token, selectedClientId);
-  }, [loadPairingHistory, selectedClientId, token]);
-
-  useEffect(() => {
     if (!token || !landingPlaylistsPageOpen) {
       return;
     }
@@ -956,19 +1097,36 @@ export const App: React.FC = () => {
 
   const callAuth = async (): Promise<void> => {
     try {
+      const normalizedEmail = email.trim().toLowerCase();
+      const emailError = validateEmailRequired(
+        normalizedEmail,
+        'Введите email администратора.',
+        'Введите корректный email администратора.'
+      );
+      const passwordError = validatePasswordMinLength(password, 'Пароль должен содержать минимум 8 символов.');
+      setLoginEmailError(emailError);
+      setLoginPasswordError(passwordError);
+      if (emailError || passwordError) {
+        throw new Error(emailError || passwordError);
+      }
+
       const result = await fetchJson<{ accessToken: string; user?: { email?: string } }>(`${API_BASE}/auth/login`, {
         method: 'POST',
-        body: JSON.stringify({ email, password })
+        body: JSON.stringify({ email: normalizedEmail, password })
       });
 
       storeToken(result.accessToken, rememberMe);
       if (result.user?.email) {
         setEmail(result.user.email);
+      } else {
+        setEmail(normalizedEmail);
       }
+      setLoginEmailError('');
+      setLoginPasswordError('');
       setTokenRevision((value) => value + 1);
       await syncClients(result.accessToken, selectedClientId);
       const adminsRows = await fetchAdmins(result.accessToken);
-      setAdmins(adminsRows);
+      setAdmins(sortAdminsByNewest(adminsRows));
 
       setStatusTone('ok');
       setStatusMessage('Вход выполнен. Добро пожаловать!');
@@ -985,8 +1143,14 @@ export const App: React.FC = () => {
   const requestPasswordReset = async () => {
     try {
       const targetEmail = (resetEmail || email).trim().toLowerCase();
-      if (!targetEmail) {
-        throw new Error('Введите email для восстановления пароля.');
+      const emailError = validateEmailRequired(
+        targetEmail,
+        'Введите email для восстановления пароля.',
+        'Введите корректный email для восстановления пароля.'
+      );
+      setForgotEmailError(emailError);
+      if (emailError) {
+        throw new Error(emailError);
       }
 
       const result = await fetchJson<{ success: true; message: string }>(`${API_BASE}/auth/password/forgot`, {
@@ -995,6 +1159,7 @@ export const App: React.FC = () => {
       });
 
       setResetEmail(targetEmail);
+      setForgotEmailError('');
       setStatusTone('ok');
       setStatusMessage(result.message);
       setFocusTopic('account');
@@ -1014,6 +1179,10 @@ export const App: React.FC = () => {
     setRegisterPassword('');
     setRegisterPasswordConfirm('');
     setRegisterCode('');
+    setRegisterEmailError('');
+    setRegisterPasswordError('');
+    setRegisterPasswordConfirmError('');
+    setRegisterCodeError('');
     setRegisterModalOpen(true);
     setLandingAuthOpen(false);
     setForgotModalOpen(false);
@@ -1023,22 +1192,29 @@ export const App: React.FC = () => {
   const closeRegisterModal = () => {
     setRegisterModalOpen(false);
     setRegisterCode('');
+    setRegisterEmailError('');
+    setRegisterPasswordError('');
+    setRegisterPasswordConfirmError('');
+    setRegisterCodeError('');
     setLandingAuthOpen(true);
   };
 
   const submitRegistrationForm = async () => {
     try {
       const normalizedEmail = registerEmail.trim().toLowerCase();
-      if (!normalizedEmail) {
-        throw new Error('Введите email для регистрации.');
-      }
-
-      if (registerPassword.length < 8) {
-        throw new Error('Пароль должен содержать минимум 8 символов.');
-      }
-
-      if (registerPassword !== registerPasswordConfirm) {
-        throw new Error('Пароль и подтверждение не совпадают.');
+      const emailError = validateEmailRequired(normalizedEmail, 'Введите email для регистрации.', 'Введите корректный email для регистрации.');
+      const passwordError = validatePasswordMinLength(registerPassword, 'Пароль должен содержать минимум 8 символов.');
+      const passwordConfirmError = validatePasswordConfirm(
+        registerPassword,
+        registerPasswordConfirm,
+        'Подтвердите пароль.',
+        'Пароль и подтверждение не совпадают.'
+      );
+      setRegisterEmailError(emailError);
+      setRegisterPasswordError(passwordError);
+      setRegisterPasswordConfirmError(passwordConfirmError);
+      if (emailError || passwordError || passwordConfirmError) {
+        throw new Error(emailError || passwordError || passwordConfirmError);
       }
 
       const result = await fetchJson<{ success: true; message: string }>(`${API_BASE}/auth/register`, {
@@ -1050,8 +1226,11 @@ export const App: React.FC = () => {
       });
 
       setEmail(normalizedEmail);
+      setRegisterEmail(normalizedEmail);
       setRegisterPassword('');
       setRegisterPasswordConfirm('');
+      setRegisterPasswordError('');
+      setRegisterPasswordConfirmError('');
       startRegisterResendCooldown();
       setStatusTone('ok');
       setStatusMessage(result.message);
@@ -1064,8 +1243,10 @@ export const App: React.FC = () => {
   const confirmRegistrationForm = async () => {
     try {
       const normalizedCode = registerCode.trim();
-      if (!/^\d{8}$/.test(normalizedCode)) {
-        throw new Error('Введите 8-значный код из письма.');
+      const codeError = validateCode8Digits(normalizedCode, 'Введите код подтверждения.', 'Введите 8-значный код из письма.');
+      setRegisterCodeError(codeError);
+      if (codeError) {
+        throw new Error(codeError);
       }
 
       const result = await fetchJson<{ accessToken: string; user?: { email?: string } }>(`${API_BASE}/auth/register/confirm`, {
@@ -1077,7 +1258,7 @@ export const App: React.FC = () => {
       setTokenRevision((value) => value + 1);
       await syncClients(result.accessToken, selectedClientId);
       const adminsRows = await fetchAdmins(result.accessToken);
-      setAdmins(adminsRows);
+      setAdmins(sortAdminsByNewest(adminsRows));
 
       if (result.user?.email) {
         setEmail(result.user.email);
@@ -1088,6 +1269,10 @@ export const App: React.FC = () => {
       setRegisterCode('');
       setRegisterPassword('');
       setRegisterPasswordConfirm('');
+      setRegisterEmailError('');
+      setRegisterPasswordError('');
+      setRegisterPasswordConfirmError('');
+      setRegisterCodeError('');
       setRegisterModalOpen(false);
       setLandingAuthOpen(false);
       setDashboardOpen(false);
@@ -1106,8 +1291,14 @@ export const App: React.FC = () => {
       }
 
       const normalizedEmail = registerEmail.trim().toLowerCase();
-      if (!normalizedEmail) {
-        throw new Error('Введите email для повторной отправки подтверждения.');
+      const emailError = validateEmailRequired(
+        normalizedEmail,
+        'Введите email для повторной отправки подтверждения.',
+        'Введите корректный email для повторной отправки подтверждения.'
+      );
+      setRegisterEmailError(emailError);
+      if (emailError) {
+        throw new Error(emailError);
       }
 
       const result = await fetchJson<{ success: true; message: string }>(`${API_BASE}/auth/register/resend`, {
@@ -1115,6 +1306,7 @@ export const App: React.FC = () => {
         body: JSON.stringify({ email: normalizedEmail })
       });
 
+      setRegisterEmailError('');
       startRegisterResendCooldown();
       setStatusTone('ok');
       setStatusMessage(result.message);
@@ -1130,6 +1322,7 @@ export const App: React.FC = () => {
 
   const openForgotPasswordModal = () => {
     setResetEmail((current) => current || email.trim().toLowerCase());
+    setForgotEmailError('');
     setRegisterModalOpen(false);
     setForgotModalOpen(true);
     setLandingAuthOpen(false);
@@ -1138,6 +1331,7 @@ export const App: React.FC = () => {
 
   const closeForgotPasswordModal = () => {
     setForgotModalOpen(false);
+    setForgotEmailError('');
     setLandingAuthOpen(true);
   };
 
@@ -1148,6 +1342,8 @@ export const App: React.FC = () => {
     setResetToken('');
     setResetPassword('');
     setResetPasswordConfirm('');
+    setResetPasswordError('');
+    setResetPasswordConfirmError('');
     removeQueryParam('resetToken');
     setLandingAuthOpen(true);
   };
@@ -1159,12 +1355,17 @@ export const App: React.FC = () => {
         throw new Error('Токен восстановления отсутствует.');
       }
 
-      if (resetPassword.length < 8) {
-        throw new Error('Новый пароль должен содержать минимум 8 символов.');
-      }
-
-      if (resetPassword !== resetPasswordConfirm) {
-        throw new Error('Пароли не совпадают.');
+      const passwordError = validatePasswordMinLength(resetPassword, 'Новый пароль должен содержать минимум 8 символов.');
+      const passwordConfirmError = validatePasswordConfirm(
+        resetPassword,
+        resetPasswordConfirm,
+        'Повторите новый пароль.',
+        'Пароли не совпадают.'
+      );
+      setResetPasswordError(passwordError);
+      setResetPasswordConfirmError(passwordConfirmError);
+      if (passwordError || passwordConfirmError) {
+        throw new Error(passwordError || passwordConfirmError);
       }
 
       const result = await fetchJson<{ success: true; message: string }>(`${API_BASE}/auth/password/reset`, {
@@ -1183,6 +1384,8 @@ export const App: React.FC = () => {
       setResetToken('');
       setResetPassword('');
       setResetPasswordConfirm('');
+      setResetPasswordError('');
+      setResetPasswordConfirmError('');
       removeQueryParam('resetToken');
       setLandingAuthOpen(true);
     } catch (error) {
@@ -1201,6 +1404,23 @@ export const App: React.FC = () => {
     setForgotModalOpen(false);
     setClients([]);
     setAdmins([]);
+    setAdminSearchQuery('');
+    setAdminSortMode('newest');
+    setCopiedAdminEmail('');
+    setPendingAdminEmailForConfirm('');
+    setLastConfirmedAdminEmail('');
+    setNewAdminEmailError('');
+    setNewAdminPasswordError('');
+    setNewAdminCodeError('');
+    setLoginEmailError('');
+    setLoginPasswordError('');
+    setRegisterEmailError('');
+    setRegisterPasswordError('');
+    setRegisterPasswordConfirmError('');
+    setRegisterCodeError('');
+    setForgotEmailError('');
+    setResetPasswordError('');
+    setResetPasswordConfirmError('');
     setSelectedClientId('');
     setEditingClientId('');
     setStatusTone('ok');
@@ -1208,15 +1428,141 @@ export const App: React.FC = () => {
     setFocusTopic('session');
   };
 
+  const handleNewAdminEmailChange = (value: string): void => {
+    setNewAdminEmail(value);
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      setNewAdminEmailError('');
+      return;
+    }
+    setNewAdminEmailError(isEmailLike(normalized) ? '' : 'Введите корректный email нового администратора.');
+  };
+
+  const handleNewAdminPasswordChange = (value: string): void => {
+    setNewAdminPassword(value);
+    if (!value.trim()) {
+      setNewAdminPasswordError('');
+      return;
+    }
+    setNewAdminPasswordError(value.trim().length >= 8 ? '' : 'Минимум 8 символов.');
+  };
+
+  const handleNewAdminCodeChange = (value: string): void => {
+    const normalized = value.replace(/\D/g, '').slice(0, 8);
+    setNewAdminCode(normalized);
+    if (!normalized) {
+      setNewAdminCodeError('');
+      return;
+    }
+    setNewAdminCodeError(/^\d{8}$/.test(normalized) ? '' : 'Код должен состоять из 8 цифр.');
+  };
+
+  const handleLoginEmailChange = (value: string): void => {
+    setEmail(value);
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      setLoginEmailError('');
+      return;
+    }
+    setLoginEmailError(isEmailLike(normalized) ? '' : 'Введите корректный email администратора.');
+  };
+
+  const handleLoginPasswordChange = (value: string): void => {
+    setPassword(value);
+    if (!value.trim()) {
+      setLoginPasswordError('');
+      return;
+    }
+    setLoginPasswordError(value.trim().length >= 8 ? '' : 'Минимум 8 символов.');
+  };
+
+  const handleRegisterEmailChange = (value: string): void => {
+    setRegisterEmail(value);
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      setRegisterEmailError('');
+      return;
+    }
+    setRegisterEmailError(isEmailLike(normalized) ? '' : 'Введите корректный email для регистрации.');
+  };
+
+  const handleRegisterPasswordChange = (value: string): void => {
+    setRegisterPassword(value);
+    if (!value.trim()) {
+      setRegisterPasswordError('');
+    } else {
+      setRegisterPasswordError(value.trim().length >= 8 ? '' : 'Минимум 8 символов.');
+    }
+
+    if (!registerPasswordConfirm) {
+      setRegisterPasswordConfirmError('');
+      return;
+    }
+    setRegisterPasswordConfirmError(value === registerPasswordConfirm ? '' : 'Пароль и подтверждение не совпадают.');
+  };
+
+  const handleRegisterPasswordConfirmChange = (value: string): void => {
+    setRegisterPasswordConfirm(value);
+    if (!value) {
+      setRegisterPasswordConfirmError('');
+      return;
+    }
+    setRegisterPasswordConfirmError(registerPassword === value ? '' : 'Пароль и подтверждение не совпадают.');
+  };
+
+  const handleRegisterCodeChange = (value: string): void => {
+    const normalized = value.replace(/\D/g, '').slice(0, 8);
+    setRegisterCode(normalized);
+    if (!normalized) {
+      setRegisterCodeError('');
+      return;
+    }
+    setRegisterCodeError(/^\d{8}$/.test(normalized) ? '' : 'Код должен состоять из 8 цифр.');
+  };
+
+  const handleForgotEmailChange = (value: string): void => {
+    setResetEmail(value);
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      setForgotEmailError('');
+      return;
+    }
+    setForgotEmailError(isEmailLike(normalized) ? '' : 'Введите корректный email для восстановления пароля.');
+  };
+
+  const handleResetPasswordChange = (value: string): void => {
+    setResetPassword(value);
+    if (!value.trim()) {
+      setResetPasswordError('');
+    } else {
+      setResetPasswordError(value.trim().length >= 8 ? '' : 'Минимум 8 символов.');
+    }
+
+    if (!resetPasswordConfirm) {
+      setResetPasswordConfirmError('');
+      return;
+    }
+    setResetPasswordConfirmError(value === resetPasswordConfirm ? '' : 'Пароли не совпадают.');
+  };
+
+  const handleResetPasswordConfirmChange = (value: string): void => {
+    setResetPasswordConfirm(value);
+    if (!value) {
+      setResetPasswordConfirmError('');
+      return;
+    }
+    setResetPasswordConfirmError(resetPassword === value ? '' : 'Пароли не совпадают.');
+  };
+
   const requestNewAdminCode = async () => {
     try {
       const normalizedEmail = newAdminEmail.trim().toLowerCase();
-      if (!normalizedEmail) {
-        throw new Error('Введите email нового администратора.');
-      }
-
-      if (newAdminPassword.trim().length < 8) {
-        throw new Error('Пароль нового администратора должен содержать минимум 8 символов.');
+      const emailError = validateAdminEmailRequired(normalizedEmail);
+      const passwordError = validateAdminPasswordRequired(newAdminPassword);
+      setNewAdminEmailError(emailError);
+      setNewAdminPasswordError(passwordError);
+      if (emailError || passwordError) {
+        throw new Error(emailError || passwordError);
       }
 
       const result = await fetchJson<{ success: true; message: string }>(`${API_BASE}/auth/register`, {
@@ -1228,6 +1574,10 @@ export const App: React.FC = () => {
       });
 
       setNewAdminEmail(normalizedEmail);
+      setNewAdminEmailError('');
+      setNewAdminPasswordError('');
+      setPendingAdminEmailForConfirm(normalizedEmail);
+      setLastConfirmedAdminEmail('');
       startNewAdminResendCooldown();
       setStatusTone('ok');
       setStatusMessage(result.message);
@@ -1244,8 +1594,10 @@ export const App: React.FC = () => {
       }
 
       const normalizedEmail = newAdminEmail.trim().toLowerCase();
-      if (!normalizedEmail) {
-        throw new Error('Введите email нового администратора.');
+      const emailError = validateAdminEmailRequired(normalizedEmail);
+      setNewAdminEmailError(emailError);
+      if (emailError) {
+        throw new Error(emailError);
       }
 
       const result = await fetchJson<{ success: true; message: string }>(`${API_BASE}/auth/register/resend`, {
@@ -1253,6 +1605,8 @@ export const App: React.FC = () => {
         body: JSON.stringify({ email: normalizedEmail })
       });
 
+      setNewAdminEmailError('');
+      setPendingAdminEmailForConfirm(normalizedEmail);
       startNewAdminResendCooldown();
       setStatusTone('ok');
       setStatusMessage(result.message);
@@ -1266,8 +1620,10 @@ export const App: React.FC = () => {
     try {
       const authToken = requireToken();
       const normalizedCode = newAdminCode.trim();
-      if (!/^\d{8}$/.test(normalizedCode)) {
-        throw new Error('Введите 8-значный код нового администратора.');
+      const codeError = validateAdminCodeRequired(normalizedCode);
+      setNewAdminCodeError(codeError);
+      if (codeError) {
+        throw new Error(codeError);
       }
 
       await fetchJson<{ accessToken: string }>(`${API_BASE}/auth/register/confirm`, {
@@ -1275,11 +1631,17 @@ export const App: React.FC = () => {
         body: JSON.stringify({ token: normalizedCode })
       });
 
+      const confirmedEmail = pendingAdminEmailForConfirm || newAdminEmail.trim().toLowerCase();
       await loadAdmins(authToken);
       setNewAdminEmail('');
       setNewAdminPassword('');
       setNewAdminCode('');
+      setNewAdminEmailError('');
+      setNewAdminPasswordError('');
+      setNewAdminCodeError('');
       setNewAdminResendCooldownSec(0);
+      setPendingAdminEmailForConfirm('');
+      setLastConfirmedAdminEmail(confirmedEmail);
       setStatusTone('ok');
       setStatusMessage('Новый администратор подтвержден и добавлен.');
       setFocusTopic('admins');
@@ -1288,7 +1650,37 @@ export const App: React.FC = () => {
     }
   };
 
+  const copyAdminEmail = async (adminEmail: string): Promise<void> => {
+    try {
+      if (!navigator.clipboard?.writeText) {
+        throw new Error('Буфер обмена недоступен в этом браузере.');
+      }
+
+      await navigator.clipboard.writeText(adminEmail);
+      setCopiedAdminEmail(adminEmail);
+      setStatusTone('ok');
+      setStatusMessage(`Email скопирован: ${adminEmail}.`);
+      setFocusTopic('admins');
+    } catch (error) {
+      reportError(error);
+    }
+  };
+
   const deleteAdmin = async (admin: AdminItem) => {
+    if (currentAdminEmail && admin.email.toLowerCase() === currentAdminEmail) {
+      setStatusTone('error');
+      setStatusMessage('Нельзя удалить администратора, под которым выполнен текущий вход.');
+      setFocusTopic('admins');
+      return;
+    }
+
+    if (admins.length <= 1) {
+      setStatusTone('error');
+      setStatusMessage('Нельзя удалить последнего администратора.');
+      setFocusTopic('admins');
+      return;
+    }
+
     const accepted = window.confirm(`Удалить администратора ${admin.email}?`);
     if (!accepted) {
       return;
@@ -1400,24 +1792,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const updateClientLimit = async (client: ClientItem, nextLimit: number) => {
-    try {
-      const authToken = requireToken();
-      await fetchJson<ClientItem>(`${API_BASE}/clients/${client.id}`, {
-        method: 'PATCH',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ devicesAllowed: nextLimit })
-      });
-
-      await syncClients(authToken, client.id);
-      setStatusTone('ok');
-      setStatusMessage(`Лимит обновлен для ${client.lastName} ${client.firstName}: ${nextLimit} устройств.`);
-      setFocusTopic('clients');
-    } catch (error) {
-      reportError(error);
-    }
-  };
-
   const deleteClient = async (client: ClientItem) => {
     const accepted = window.confirm(`Удалить клиента ${client.lastName} ${client.firstName}?`);
     if (!accepted) {
@@ -1470,7 +1844,6 @@ export const App: React.FC = () => {
       });
 
       await syncClients(authToken, selectedClientId);
-      await loadPairingHistory(authToken, selectedClientId);
       await loadDevices(authToken);
       setPairCode('');
       setPairPlaylistMode('GLOBAL');
@@ -2018,23 +2391,6 @@ export const App: React.FC = () => {
     }
   };
 
-  const saveEpg = async () => {
-    try {
-      const authToken = requireToken();
-      await fetchJson<{ success: true }>(`${API_BASE}/epg/set-url`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ url: epgUrl })
-      });
-
-      setStatusTone('ok');
-      setStatusMessage('EPG использует фиксированный источник: https://epg.ott-play.com.');
-      setFocusTopic('sources');
-    } catch (error) {
-      reportError(error);
-    }
-  };
-
   const openLandingAuth = () => {
     if (token) {
       setDashboardOpen(true);
@@ -2045,10 +2401,18 @@ export const App: React.FC = () => {
       return;
     }
 
+    setLoginEmailError('');
+    setLoginPasswordError('');
     setLandingAuthOpen(true);
     setRegisterModalOpen(false);
     setForgotModalOpen(false);
     setFocusTopic('account');
+  };
+
+  const closeLandingAuthModal = () => {
+    setLoginEmailError('');
+    setLoginPasswordError('');
+    setLandingAuthOpen(false);
   };
 
   const openLandingTile = (tile: Exclude<LandingTile, 'cabinet'>): void => {
@@ -2079,6 +2443,11 @@ export const App: React.FC = () => {
     if (token) {
       void loadPlaylistWorkspace(token);
     }
+  };
+
+  const continueWizardToPlaylists = (): void => {
+    setDashboardOpen(false);
+    openPlaylistsPage();
   };
 
   const openSubscribersPage = (): void => {
@@ -3058,7 +3427,7 @@ export const App: React.FC = () => {
         </div>
 
         {landingAuthOpen ? (
-          <div className="wa-base-auth-overlay" role="presentation" onClick={() => setLandingAuthOpen(false)}>
+          <div className="wa-base-auth-overlay" role="presentation" onClick={closeLandingAuthModal}>
             <div className="wa-base-auth-card" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}>
               <p className="wa-base-auth-title">Вход администратора</p>
               <p className="wa-base-auth-subtitle">
@@ -3068,24 +3437,38 @@ export const App: React.FC = () => {
               <label className="wa-base-auth-label">
                 <span>Эл. почта</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={loginEmailError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   value={email}
-                  onChange={(event) => setEmail(event.target.value)}
+                  onChange={(event) => handleLoginEmailChange(event.target.value)}
                   placeholder="admin@example.com"
                   autoComplete="username"
+                  aria-invalid={Boolean(loginEmailError)}
+                  aria-describedby={loginEmailError ? 'wa-login-email-error' : undefined}
                 />
+                {loginEmailError ? (
+                  <p id="wa-login-email-error" className="wa-base-auth-field-error">
+                    {loginEmailError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="wa-base-auth-label">
                 <span>Пароль</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={loginPasswordError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   type="password"
                   value={password}
-                  onChange={(event) => setPassword(event.target.value)}
+                  onChange={(event) => handleLoginPasswordChange(event.target.value)}
                   placeholder="********"
                   autoComplete="current-password"
+                  aria-invalid={Boolean(loginPasswordError)}
+                  aria-describedby={loginPasswordError ? 'wa-login-password-error' : undefined}
                 />
+                {loginPasswordError ? (
+                  <p id="wa-login-password-error" className="wa-base-auth-field-error">
+                    {loginPasswordError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="wa-base-auth-remember">
@@ -3109,13 +3492,14 @@ export const App: React.FC = () => {
                   type="button"
                   className="wa-base-auth-btn wa-base-auth-btn--primary"
                   onClick={() => void callAuth()}
+                  disabled={!canLogin}
                 >
                   Войти
                 </button>
                 <button
                   type="button"
                   className="wa-base-auth-btn wa-base-auth-btn--ghost"
-                  onClick={() => setLandingAuthOpen(false)}
+                  onClick={closeLandingAuthModal}
                 >
                   Закрыть
                 </button>
@@ -3147,48 +3531,76 @@ export const App: React.FC = () => {
               <label className="wa-base-auth-label">
                 <span>Эл. почта</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={registerEmailError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   value={registerEmail}
-                  onChange={(event) => setRegisterEmail(event.target.value)}
+                  onChange={(event) => handleRegisterEmailChange(event.target.value)}
                   placeholder="admin@example.com"
                   autoComplete="email"
+                  aria-invalid={Boolean(registerEmailError)}
+                  aria-describedby={registerEmailError ? 'wa-register-email-error' : undefined}
                 />
+                {registerEmailError ? (
+                  <p id="wa-register-email-error" className="wa-base-auth-field-error">
+                    {registerEmailError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="wa-base-auth-label">
                 <span>Пароль</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={registerPasswordError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   type="password"
                   value={registerPassword}
-                  onChange={(event) => setRegisterPassword(event.target.value)}
+                  onChange={(event) => handleRegisterPasswordChange(event.target.value)}
                   placeholder="********"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(registerPasswordError)}
+                  aria-describedby={registerPasswordError ? 'wa-register-password-error' : undefined}
                 />
+                {registerPasswordError ? (
+                  <p id="wa-register-password-error" className="wa-base-auth-field-error">
+                    {registerPasswordError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="wa-base-auth-label">
                 <span>Подтверждение пароля</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={registerPasswordConfirmError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   type="password"
                   value={registerPasswordConfirm}
-                  onChange={(event) => setRegisterPasswordConfirm(event.target.value)}
+                  onChange={(event) => handleRegisterPasswordConfirmChange(event.target.value)}
                   placeholder="********"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(registerPasswordConfirmError)}
+                  aria-describedby={registerPasswordConfirmError ? 'wa-register-password-confirm-error' : undefined}
                 />
+                {registerPasswordConfirmError ? (
+                  <p id="wa-register-password-confirm-error" className="wa-base-auth-field-error">
+                    {registerPasswordConfirmError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="wa-base-auth-label">
                 <span>Код подтверждения</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={registerCodeError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   value={registerCode}
-                  onChange={(event) => setRegisterCode(event.target.value)}
+                  onChange={(event) => handleRegisterCodeChange(event.target.value)}
                   placeholder="12345678"
                   inputMode="numeric"
                   maxLength={8}
+                  aria-invalid={Boolean(registerCodeError)}
+                  aria-describedby={registerCodeError ? 'wa-register-code-error' : undefined}
                 />
+                {registerCodeError ? (
+                  <p id="wa-register-code-error" className="wa-base-auth-field-error">
+                    {registerCodeError}
+                  </p>
+                ) : null}
               </label>
 
               <div className="wa-base-auth-actions">
@@ -3196,6 +3608,7 @@ export const App: React.FC = () => {
                   type="button"
                   className="wa-base-auth-btn wa-base-auth-btn--primary"
                   onClick={() => void submitRegistrationForm()}
+                  disabled={!canSubmitRegister}
                 >
                   Зарегистрироваться
                 </button>
@@ -3203,7 +3616,7 @@ export const App: React.FC = () => {
                   type="button"
                   className="wa-base-auth-btn"
                   onClick={() => void resendRegistrationForm()}
-                  disabled={registerResendCooldownSec > 0}
+                  disabled={!canResendRegister}
                 >
                   {registerResendCooldownSec > 0
                     ? `Повторно отправить (${formatCountdown(registerResendCooldownSec)})`
@@ -3213,6 +3626,7 @@ export const App: React.FC = () => {
                   type="button"
                   className="wa-base-auth-btn wa-base-auth-btn--primary"
                   onClick={() => void confirmRegistrationForm()}
+                  disabled={!canConfirmRegister}
                 >
                   Подтвердить код
                 </button>
@@ -3247,12 +3661,19 @@ export const App: React.FC = () => {
               <label className="wa-base-auth-label">
                 <span>Эл. почта</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={forgotEmailError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   value={resetEmail}
-                  onChange={(event) => setResetEmail(event.target.value)}
+                  onChange={(event) => handleForgotEmailChange(event.target.value)}
                   placeholder="admin@example.com"
                   autoComplete="email"
+                  aria-invalid={Boolean(forgotEmailError)}
+                  aria-describedby={forgotEmailError ? 'wa-forgot-email-error' : undefined}
                 />
+                {forgotEmailError ? (
+                  <p id="wa-forgot-email-error" className="wa-base-auth-field-error">
+                    {forgotEmailError}
+                  </p>
+                ) : null}
               </label>
 
               <div className="wa-base-auth-actions">
@@ -3260,6 +3681,7 @@ export const App: React.FC = () => {
                   type="button"
                   className="wa-base-auth-btn wa-base-auth-btn--primary"
                   onClick={() => void requestPasswordReset()}
+                  disabled={!canRequestForgotPassword}
                 >
                   Отправить письмо
                 </button>
@@ -3294,29 +3716,48 @@ export const App: React.FC = () => {
               <label className="wa-base-auth-label">
                 <span>Новый пароль</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={resetPasswordError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   type="password"
                   value={resetPassword}
-                  onChange={(event) => setResetPassword(event.target.value)}
+                  onChange={(event) => handleResetPasswordChange(event.target.value)}
                   placeholder="********"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(resetPasswordError)}
+                  aria-describedby={resetPasswordError ? 'wa-reset-password-error' : undefined}
                 />
+                {resetPasswordError ? (
+                  <p id="wa-reset-password-error" className="wa-base-auth-field-error">
+                    {resetPasswordError}
+                  </p>
+                ) : null}
               </label>
 
               <label className="wa-base-auth-label">
                 <span>Повторите новый пароль</span>
                 <input
-                  className="wa-base-auth-input"
+                  className={resetPasswordConfirmError ? 'wa-base-auth-input is-error' : 'wa-base-auth-input'}
                   type="password"
                   value={resetPasswordConfirm}
-                  onChange={(event) => setResetPasswordConfirm(event.target.value)}
+                  onChange={(event) => handleResetPasswordConfirmChange(event.target.value)}
                   placeholder="********"
                   autoComplete="new-password"
+                  aria-invalid={Boolean(resetPasswordConfirmError)}
+                  aria-describedby={resetPasswordConfirmError ? 'wa-reset-password-confirm-error' : undefined}
                 />
+                {resetPasswordConfirmError ? (
+                  <p id="wa-reset-password-confirm-error" className="wa-base-auth-field-error">
+                    {resetPasswordConfirmError}
+                  </p>
+                ) : null}
               </label>
 
               <div className="wa-base-auth-actions">
-                <button type="button" className="wa-base-auth-btn wa-base-auth-btn--primary" onClick={() => void submitPasswordReset()}>
+                <button
+                  type="button"
+                  className="wa-base-auth-btn wa-base-auth-btn--primary"
+                  onClick={() => void submitPasswordReset()}
+                  disabled={!canSubmitResetPassword}
+                >
                   Сохранить пароль
                 </button>
                 <button type="button" className="wa-base-auth-btn wa-base-auth-btn--ghost" onClick={closeResetModal}>
@@ -3370,18 +3811,124 @@ export const App: React.FC = () => {
           <section className="wa-left">
             <h2 className="wa-section-title">Администраторы</h2>
 
+            <section
+              className="wa-admin-wizard"
+              onFocus={() => setFocusTopic('admins')}
+              onMouseEnter={() => setFocusTopic('admins')}
+              aria-label="Быстрый старт администратора"
+            >
+              <div className="wa-admin-wizard-head">
+                <h3 className="wa-admin-wizard-title">Быстрый старт в 3 шага</h3>
+                <p className="wa-admin-wizard-text">Сначала добавьте администратора, затем откройте плейлисты.</p>
+              </div>
+
+              <div className="wa-admin-wizard-steps">
+                <article
+                  className={
+                    adminWizardStep > 1
+                      ? 'wa-admin-wizard-step is-done'
+                      : adminWizardStep === 1
+                        ? 'wa-admin-wizard-step is-active'
+                        : 'wa-admin-wizard-step'
+                  }
+                >
+                  <span className="wa-admin-wizard-step-index">1</span>
+                  <div className="wa-admin-wizard-step-main">
+                    <p className="wa-admin-wizard-step-title">Отправьте код на email</p>
+                    <p className="wa-admin-wizard-step-text">Заполните email + пароль и отправьте код подтверждения.</p>
+                  </div>
+                  <span className="wa-admin-wizard-state">{adminWizardStep > 1 ? 'Готово' : 'Текущий шаг'}</span>
+                </article>
+
+                <article
+                  className={
+                    adminWizardStep > 2
+                      ? 'wa-admin-wizard-step is-done'
+                      : adminWizardStep === 2
+                        ? 'wa-admin-wizard-step is-active'
+                        : 'wa-admin-wizard-step'
+                  }
+                >
+                  <span className="wa-admin-wizard-step-index">2</span>
+                  <div className="wa-admin-wizard-step-main">
+                    <p className="wa-admin-wizard-step-title">Подтвердите код</p>
+                    <p className="wa-admin-wizard-step-text">
+                      {hasPendingAdminVerification
+                        ? `Код отправлен на ${pendingAdminEmailForConfirm}. Введите 8 цифр из письма.`
+                        : 'После отправки кода подтвердите нового администратора.'}
+                    </p>
+                  </div>
+                  <span className="wa-admin-wizard-state">{adminWizardStep > 2 ? 'Готово' : adminWizardStep === 2 ? 'Текущий шаг' : 'Ожидание'}</span>
+                </article>
+
+                <article className={adminWizardStep === 3 ? 'wa-admin-wizard-step is-active' : 'wa-admin-wizard-step'}>
+                  <span className="wa-admin-wizard-step-index">3</span>
+                  <div className="wa-admin-wizard-step-main">
+                    <p className="wa-admin-wizard-step-title">Добавьте первый плейлист</p>
+                    <p className="wa-admin-wizard-step-text">
+                      {hasConfirmedAdminInWizard
+                        ? `Администратор добавлен: ${lastConfirmedAdminEmail || '-'}.`
+                        : 'После подтверждения перейдите в раздел плейлистов.'}
+                    </p>
+                  </div>
+                  <span className="wa-admin-wizard-state">{adminWizardStep === 3 ? 'Текущий шаг' : 'Ожидание'}</span>
+                </article>
+              </div>
+
+              <div className="wa-actions">
+                {adminWizardStep === 1 ? (
+                  <button
+                    type="button"
+                    className="wa-btn wa-btn--primary"
+                    onClick={() => void requestNewAdminCode()}
+                    disabled={!canRequestNewAdminCode}
+                  >
+                    Шаг 1: отправить код
+                  </button>
+                ) : null}
+                {adminWizardStep === 2 ? (
+                  <button
+                    type="button"
+                    className="wa-btn wa-btn--primary"
+                    onClick={() => void confirmNewAdminCode()}
+                    disabled={!canConfirmNewAdminCode}
+                  >
+                    Шаг 2: подтвердить код
+                  </button>
+                ) : null}
+                {adminWizardStep === 3 ? (
+                  <button
+                    type="button"
+                    className="wa-btn wa-btn--primary"
+                    onClick={continueWizardToPlaylists}
+                  >
+                    Шаг 3: открыть плейлисты
+                  </button>
+                ) : null}
+              </div>
+            </section>
+
             <label
               className="wa-row"
               onFocus={() => setFocusTopic('admins')}
               onMouseEnter={() => setFocusTopic('admins')}
             >
               <span className="wa-label">Эл. почта администратора</span>
-              <input
-                className="wa-input"
-                value={newAdminEmail}
-                onChange={(event) => setNewAdminEmail(event.target.value)}
-                placeholder="admin2@example.com"
-              />
+              <div className="wa-field-control">
+                <input
+                  className={newAdminEmailError ? 'wa-input is-error' : 'wa-input'}
+                  value={newAdminEmail}
+                  onChange={(event) => handleNewAdminEmailChange(event.target.value)}
+                  placeholder="admin2@example.com"
+                  aria-invalid={Boolean(newAdminEmailError)}
+                  aria-describedby={newAdminEmailError ? 'wa-admin-email-error' : undefined}
+                />
+                {newAdminEmailError ? (
+                  <p id="wa-admin-email-error" className="wa-field-error">
+                    {newAdminEmailError}
+                  </p>
+                ) : null}
+              </div>
             </label>
 
             <label
@@ -3390,13 +3937,22 @@ export const App: React.FC = () => {
               onMouseEnter={() => setFocusTopic('admins')}
             >
               <span className="wa-label">Пароль admin</span>
-              <input
-                className="wa-input"
-                type="password"
-                value={newAdminPassword}
-                onChange={(event) => setNewAdminPassword(event.target.value)}
-                placeholder="minimum 8 characters"
-              />
+              <div className="wa-field-control">
+                <input
+                  className={newAdminPasswordError ? 'wa-input is-error' : 'wa-input'}
+                  type="password"
+                  value={newAdminPassword}
+                  onChange={(event) => handleNewAdminPasswordChange(event.target.value)}
+                  placeholder="minimum 8 characters"
+                  aria-invalid={Boolean(newAdminPasswordError)}
+                  aria-describedby={newAdminPasswordError ? 'wa-admin-password-error' : undefined}
+                />
+                {newAdminPasswordError ? (
+                  <p id="wa-admin-password-error" className="wa-field-error">
+                    {newAdminPasswordError}
+                  </p>
+                ) : null}
+              </div>
             </label>
 
             <label
@@ -3405,14 +3961,23 @@ export const App: React.FC = () => {
               onMouseEnter={() => setFocusTopic('admins')}
             >
               <span className="wa-label">Код подтверждения</span>
-              <input
-                className="wa-input"
-                value={newAdminCode}
-                onChange={(event) => setNewAdminCode(event.target.value)}
-                placeholder="8 digits from email"
-                inputMode="numeric"
-                maxLength={8}
-              />
+              <div className="wa-field-control">
+                <input
+                  className={newAdminCodeError ? 'wa-input is-error' : 'wa-input'}
+                  value={newAdminCode}
+                  onChange={(event) => handleNewAdminCodeChange(event.target.value)}
+                  placeholder="8 digits from email"
+                  inputMode="numeric"
+                  maxLength={8}
+                  aria-invalid={Boolean(newAdminCodeError)}
+                  aria-describedby={newAdminCodeError ? 'wa-admin-code-error' : undefined}
+                />
+                {newAdminCodeError ? (
+                  <p id="wa-admin-code-error" className="wa-field-error">
+                    {newAdminCodeError}
+                  </p>
+                ) : null}
+              </div>
             </label>
 
             <div
@@ -3422,20 +3987,30 @@ export const App: React.FC = () => {
             >
               <span className="wa-label">Действия администратора</span>
               <div className="wa-actions">
-                <button type="button" className="wa-btn wa-btn--primary" onClick={() => void requestNewAdminCode()}>
+                <button
+                  type="button"
+                  className="wa-btn wa-btn--primary"
+                  onClick={() => void requestNewAdminCode()}
+                  disabled={!canRequestNewAdminCode}
+                >
                   Отправить код
                 </button>
                 <button
                   type="button"
                   className="wa-btn"
                   onClick={() => void resendNewAdminCode()}
-                  disabled={newAdminResendCooldownSec > 0}
+                  disabled={!canResendNewAdminCode}
                 >
                   {newAdminResendCooldownSec > 0
                     ? `Повторно отправить (${formatCountdown(newAdminResendCooldownSec)})`
                     : 'Повторно отправить код'}
                 </button>
-                <button type="button" className="wa-btn wa-btn--primary" onClick={() => void confirmNewAdminCode()}>
+                <button
+                  type="button"
+                  className="wa-btn wa-btn--primary"
+                  onClick={() => void confirmNewAdminCode()}
+                  disabled={!canConfirmNewAdminCode}
+                >
                   Подтвердить и добавить
                 </button>
                 <button type="button" className="wa-btn" onClick={() => void loadAdmins()} disabled={adminsBusy}>
@@ -3445,28 +4020,73 @@ export const App: React.FC = () => {
             </div>
 
             <div
+              className="wa-row wa-row--actions"
+              onFocus={() => setFocusTopic('admins')}
+              onMouseEnter={() => setFocusTopic('admins')}
+            >
+              <span className="wa-label">Список админов</span>
+              <div className="wa-admin-toolbar">
+                <div className="wa-admin-toolbar-controls">
+                  <input
+                    className="wa-input"
+                    value={adminSearchQuery}
+                    onChange={(event) => setAdminSearchQuery(event.target.value)}
+                    placeholder="Поиск по email"
+                  />
+                  <select
+                    className="wa-input wa-select"
+                    value={adminSortMode}
+                    onChange={(event) => setAdminSortMode(event.target.value as AdminSortMode)}
+                  >
+                    <option value="newest">Сначала новые</option>
+                    <option value="oldest">Сначала старые</option>
+                    <option value="email">Email A-Z</option>
+                  </select>
+                </div>
+                <p className="wa-admin-toolbar-meta">
+                  Показано: {filteredAdmins.length} из {admins.length}. Последний добавлен: {formatDateTime(newestAdminCreatedAt)}
+                </p>
+              </div>
+            </div>
+
+            <div
               className="wa-admin-list"
               onFocus={() => setFocusTopic('admins')}
               onMouseEnter={() => setFocusTopic('admins')}
             >
-              {admins.length === 0 ? (
-                <p className="wa-empty">Администраторы отсутствуют.</p>
+              {admins.length <= 1 ? (
+                <p className="wa-admin-meta wa-admin-meta--hint">Удаление отключено: минимум один администратор обязателен.</p>
+              ) : null}
+              {filteredAdmins.length === 0 ? (
+                <p className="wa-empty">
+                  {adminSearchQuery.trim() ? 'По вашему фильтру администраторы не найдены.' : 'Администраторы отсутствуют.'}
+                </p>
               ) : (
-                admins.map((admin) => (
-                  <article key={admin.id} className="wa-admin-item">
-                    <p className="wa-admin-email">{admin.email}</p>
-                    <p className="wa-admin-meta">Создан: {formatDateTime(admin.createdAt)}</p>
-                    <div className="wa-actions">
-                      <button
-                        type="button"
-                        className="wa-btn wa-btn--ghost"
-                        onClick={() => void deleteAdmin(admin)}
-                      >
-                        Удалить админа
-                      </button>
-                    </div>
-                  </article>
-                ))
+                filteredAdmins.map((admin) => {
+                  const isCurrentAdmin = currentAdminEmail.length > 0 && admin.email.toLowerCase() === currentAdminEmail;
+                  return (
+                    <article key={admin.id} className="wa-admin-item">
+                      <div className="wa-admin-item-head">
+                        <p className="wa-admin-email">{admin.email}</p>
+                        {isCurrentAdmin ? <span className="wa-pill wa-pill--admin">Текущий вход</span> : null}
+                      </div>
+                      <p className="wa-admin-meta">Создан: {formatDateTime(admin.createdAt)}</p>
+                      <div className="wa-actions">
+                        <button type="button" className="wa-btn" onClick={() => void copyAdminEmail(admin.email)}>
+                          {copiedAdminEmail === admin.email ? 'Скопировано' : 'Копировать email'}
+                        </button>
+                        <button
+                          type="button"
+                          className="wa-btn wa-btn--ghost"
+                          onClick={() => void deleteAdmin(admin)}
+                          disabled={adminsBusy || isCurrentAdmin || admins.length <= 1}
+                        >
+                          Удалить админа
+                        </button>
+                      </div>
+                    </article>
+                  );
+                })
               )}
             </div>
           </section>
@@ -3495,7 +4115,10 @@ export const App: React.FC = () => {
 
             <div className="wa-meta" onMouseEnter={() => setFocusTopic('admins')}>
               <span className="wa-meta-label">Администраторы</span>
-              <strong className="wa-meta-value">{admins.length}</strong>
+              <strong className="wa-meta-value">
+                {filteredAdmins.length}
+                {adminSearchQuery.trim() ? ` / ${admins.length}` : ''}
+              </strong>
             </div>
 
             <div className="wa-meta" onMouseEnter={() => setFocusTopic('session')}>

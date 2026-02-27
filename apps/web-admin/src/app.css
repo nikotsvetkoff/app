@@ -994,6 +994,18 @@ body,
   box-shadow: 0 0 0 2px rgba(108, 236, 178, 0.3);
 }
 
+.wa-base-auth-input.is-error {
+  border-color: rgba(255, 168, 168, 0.88);
+  box-shadow: 0 0 0 2px rgba(255, 124, 124, 0.22);
+}
+
+.wa-base-auth-field-error {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 196, 196, 0.98);
+  line-height: 1.3;
+}
+
 .wa-base-auth-forgot {
   display: block;
   width: fit-content;
@@ -1234,6 +1246,102 @@ body,
   font-size: 14px;
 }
 
+.wa-admin-wizard {
+  margin: 0 0 10px;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(111, 255, 196, 0.45);
+  background: rgba(8, 37, 94, 0.72);
+  display: grid;
+  gap: 10px;
+}
+
+.wa-admin-wizard-head {
+  display: grid;
+  gap: 4px;
+}
+
+.wa-admin-wizard-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #e8f5ff;
+}
+
+.wa-admin-wizard-text {
+  margin: 0;
+  font-size: 14px;
+  color: rgba(223, 238, 255, 0.9);
+}
+
+.wa-admin-wizard-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.wa-admin-wizard-step {
+  border-radius: 8px;
+  border: 1px solid rgba(124, 182, 250, 0.42);
+  background: rgba(7, 31, 82, 0.66);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.wa-admin-wizard-step.is-active {
+  border-color: rgba(111, 255, 196, 0.72);
+  box-shadow: 0 0 0 1px rgba(111, 255, 196, 0.25) inset;
+}
+
+.wa-admin-wizard-step.is-done {
+  border-color: rgba(129, 246, 197, 0.62);
+  background: rgba(20, 92, 71, 0.42);
+}
+
+.wa-admin-wizard-step-index {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid rgba(125, 188, 255, 0.66);
+  background: rgba(15, 56, 134, 0.74);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.wa-admin-wizard-step-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.wa-admin-wizard-step-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #eaf5ff;
+}
+
+.wa-admin-wizard-step-text {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(222, 237, 255, 0.9);
+}
+
+.wa-admin-wizard-state {
+  border-radius: 999px;
+  border: 1px solid rgba(122, 187, 255, 0.55);
+  padding: 2px 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(233, 246, 255, 0.96);
+  white-space: nowrap;
+}
+
 .wa-main {
   margin-top: 14px;
   flex: 1;
@@ -1342,6 +1450,11 @@ body,
   font: inherit;
 }
 
+.wa-field-control {
+  display: grid;
+  gap: 4px;
+}
+
 .wa-select {
   cursor: pointer;
 }
@@ -1352,6 +1465,17 @@ body,
   box-shadow: 0 0 0 2px rgba(101, 236, 178, 0.28);
 }
 
+.wa-input.is-error {
+  border-color: rgba(255, 170, 170, 0.85);
+  box-shadow: 0 0 0 2px rgba(255, 120, 120, 0.22);
+}
+
+.wa-field-error {
+  margin: 0;
+  font-size: 12px;
+  color: rgba(255, 195, 195, 0.96);
+}
+
 .wa-row--actions {
   align-items: start;
 }
@@ -1360,6 +1484,29 @@ body,
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.wa-admin-toolbar {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+}
+
+.wa-admin-toolbar-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.wa-admin-toolbar-controls .wa-select {
+  min-width: 180px;
+}
+
+.wa-admin-toolbar-meta {
+  margin: 0;
+  font-size: 13px;
+  color: rgba(225, 240, 255, 0.9);
 }
 
 .wa-btn {
@@ -1425,6 +1572,19 @@ body,
   gap: 6px;
 }
 
+.wa-admin-item-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.wa-pill--admin {
+  background: rgba(80, 165, 255, 0.25);
+  border-color: rgba(126, 198, 255, 0.72);
+}
+
 .wa-admin-email {
   margin: 0;
   font-size: 16px;
@@ -1437,6 +1597,13 @@ body,
   margin: 0;
   font-size: 13px;
   color: rgba(225, 240, 255, 0.88);
+}
+
+.wa-admin-meta--hint {
+  padding: 8px;
+  border: 1px dashed rgba(126, 198, 255, 0.58);
+  border-radius: 8px;
+  background: rgba(9, 36, 92, 0.65);
 }
 
 .wa-empty {
@@ -1717,6 +1884,15 @@ body,
     grid-template-columns: 1fr;
   }
 
+  .wa-admin-wizard-step {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .wa-admin-wizard-state {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
   .wa-base-subscribers {
     padding-left: 14px;
     padding-right: 14px;
@@ -1747,5 +1923,13 @@ body,
   .wa-client-controls {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .wa-admin-toolbar-controls {
+    grid-template-columns: 1fr;
+  }
+
+  .wa-admin-toolbar-controls .wa-select {
+    min-width: 0;
   }
 }
