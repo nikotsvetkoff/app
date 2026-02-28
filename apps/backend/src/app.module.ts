@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './prisma/prisma.module';
 import { UsersModule } from './users/users.module';
@@ -14,6 +14,9 @@ import { AppController } from './app.controller';
 import { ClientsModule } from './clients/clients.module';
 import { AdminsModule } from './admins/admins.module';
 import { OttCatalogModule } from './ott-catalog/ott-catalog.module';
+import { AuditModule } from './audit/audit.module';
+import { AuditInterceptor } from './audit/audit.interceptor';
+import { SystemModule } from './system/system.module';
 
 @Module({
   controllers: [AppController],
@@ -38,12 +41,18 @@ import { OttCatalogModule } from './ott-catalog/ott-catalog.module';
     ClientsModule,
     AdminsModule,
     OttCatalogModule,
-    TelemetryModule
+    TelemetryModule,
+    AuditModule,
+    SystemModule
   ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor
     }
   ]
 })

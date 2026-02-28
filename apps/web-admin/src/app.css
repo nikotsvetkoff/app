@@ -1,5 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Sora:wght@500;600;700;800&display=swap');
+
 :root {
   color-scheme: dark;
+  --wa-font-heading: 'Sora', 'Trebuchet MS', 'Segoe UI', sans-serif;
+  --wa-font-body: 'Manrope', 'Trebuchet MS', Verdana, sans-serif;
+  --wa-bg-0: #060b1f;
+  --wa-bg-1: #0d1735;
+  --wa-bg-2: #102149;
+  --wa-panel: rgba(12, 24, 54, 0.78);
+  --wa-panel-strong: rgba(14, 30, 67, 0.9);
+  --wa-border: rgba(125, 178, 255, 0.36);
+  --wa-border-strong: rgba(126, 244, 220, 0.62);
+  --wa-text-main: #eef6ff;
+  --wa-text-soft: rgba(224, 236, 255, 0.82);
+  --wa-accent: #57d9ff;
+  --wa-accent-2: #ff8d63;
+  --wa-success: #57e8b2;
 }
 
 * {
@@ -12,9 +28,9 @@ body,
   margin: 0;
   width: 100%;
   min-height: 100%;
-  background: #04103a;
-  color: #ecf4ff;
-  font-family: 'Trebuchet MS', Verdana, sans-serif;
+  background: var(--wa-bg-0);
+  color: var(--wa-text-main);
+  font-family: var(--wa-font-body);
 }
 
 .wa-ott {
@@ -372,11 +388,41 @@ body,
   font-weight: 600;
 }
 
+.wa-playlists-submenu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wa-playlists-submenu-item {
+  min-height: 36px;
+  border-radius: 9px;
+  border: 1px solid rgba(118, 241, 211, 0.35);
+  background: rgba(15, 35, 74, 0.72);
+  color: rgba(227, 240, 255, 0.94);
+  padding: 7px 12px;
+  font-family: var(--wa-font-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.wa-playlists-submenu-item:hover {
+  border-color: rgba(118, 241, 211, 0.62);
+  background: rgba(24, 53, 112, 0.8);
+}
+
+.wa-playlists-submenu-item.is-active {
+  border-color: rgba(118, 241, 211, 0.78);
+  background: linear-gradient(180deg, rgba(87, 217, 255, 0.2), rgba(28, 74, 139, 0.3));
+}
+
 .wa-base-playlists-manager {
   margin-top: 10px;
   display: grid;
   grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
   gap: 10px;
+  align-items: start;
 }
 
 .wa-base-playlists-panel {
@@ -386,6 +432,8 @@ body,
   padding: 8px;
   display: grid;
   gap: 6px;
+  align-content: start;
+  align-self: start;
 }
 
 .wa-base-playlists-panel-title {
@@ -449,6 +497,28 @@ body,
   margin: 0;
   font-size: 12px;
   color: rgba(216, 236, 255, 0.92);
+}
+
+.wa-audit-details {
+  margin: 6px 0 0;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(116, 179, 248, 0.26);
+  background: rgba(6, 24, 62, 0.72);
+  color: rgba(223, 241, 255, 0.92);
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.wa-audit-problem {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: #ffd4d4;
 }
 
 .wa-base-playlists-draft-list {
@@ -748,9 +818,52 @@ body,
   font-weight: 700;
 }
 
+.wa-base-devices-client-list {
+  display: grid;
+  gap: 10px;
+}
+
+.wa-base-devices-client {
+  border-radius: 10px;
+  border: 1px solid rgba(116, 179, 248, 0.35);
+  background: rgba(8, 31, 84, 0.5);
+  overflow: hidden;
+}
+
+.wa-base-devices-client.is-open {
+  border-color: rgba(118, 241, 211, 0.58);
+  background: rgba(8, 33, 88, 0.62);
+}
+
+.wa-base-devices-client-toggle {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.wa-base-devices-client-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #edf8ff;
+}
+
+.wa-base-devices-client-meta {
+  font-size: 12px;
+  color: rgba(216, 236, 255, 0.9);
+}
+
 .wa-base-devices-list-grid {
   display: grid;
   gap: 10px;
+  padding: 0 10px 10px;
 }
 
 .wa-base-devices-item {
@@ -1932,4 +2045,737 @@ body,
   .wa-admin-toolbar-controls .wa-select {
     min-width: 0;
   }
+}
+
+/* Modern visual refresh */
+.wa-ott,
+.wa-ott--base {
+  position: relative;
+  background:
+    radial-gradient(circle at 8% 10%, rgba(87, 217, 255, 0.2), transparent 44%),
+    radial-gradient(circle at 92% 88%, rgba(255, 141, 99, 0.18), transparent 48%),
+    linear-gradient(160deg, var(--wa-bg-0) 0%, var(--wa-bg-1) 52%, #0a1230 100%);
+}
+
+.wa-ott::before,
+.wa-ott--base::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      135deg,
+      rgba(134, 188, 255, 0.05) 0,
+      rgba(134, 188, 255, 0.05) 1px,
+      transparent 1px,
+      transparent 16px
+    );
+  opacity: 0.7;
+}
+
+.wa-shell,
+.wa-base-shell {
+  position: relative;
+  z-index: 1;
+}
+
+.wa-base-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 35;
+  border-bottom: 1px solid var(--wa-border);
+  background: linear-gradient(180deg, rgba(9, 20, 46, 0.92), rgba(9, 19, 42, 0.78));
+  backdrop-filter: blur(14px);
+}
+
+.wa-base-top-nav-item,
+.wa-base-side-menu-item {
+  border-color: var(--wa-border);
+  border-radius: 12px;
+  font-family: var(--wa-font-heading);
+  font-size: clamp(14px, 1.2vw, 17px);
+  letter-spacing: 0.01em;
+}
+
+.wa-base-top-nav-item.is-active {
+  border-color: rgba(116, 241, 211, 0.82);
+  background:
+    linear-gradient(180deg, rgba(87, 217, 255, 0.22), rgba(49, 90, 176, 0.24)),
+    rgba(11, 28, 67, 0.9);
+}
+
+.wa-base-top-login,
+.wa-base-side-menu-item--accent {
+  border-color: rgba(110, 232, 207, 0.75);
+  background:
+    linear-gradient(180deg, rgba(87, 217, 255, 0.2), rgba(20, 84, 140, 0.24)),
+    rgba(10, 33, 73, 0.9);
+  color: #dffcff;
+}
+
+.wa-shell,
+.wa-base-guide,
+.wa-base-playlists,
+.wa-base-devices,
+.wa-base-subscribers,
+.wa-notfound-shell,
+.wa-base-auth-card {
+  border-color: var(--wa-border);
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(17, 33, 74, 0.82), rgba(10, 21, 48, 0.78)),
+    var(--wa-panel);
+  box-shadow:
+    0 16px 42px rgba(2, 8, 26, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.wa-base-playlists-panel,
+.wa-base-playlists-stat-card,
+.wa-base-devices-item,
+.wa-base-subscribers-item,
+.wa-admin-item,
+.wa-client-card,
+.wa-admin-wizard-step,
+.wa-row,
+.wa-status,
+.wa-meta {
+  border-radius: 14px;
+  border-color: rgba(136, 183, 255, 0.34);
+  background: rgba(15, 29, 63, 0.74);
+}
+
+.wa-header h1,
+.wa-section-title,
+.wa-right-title,
+.wa-base-guide-title,
+.wa-base-playlists-title,
+.wa-base-subscribers-title,
+.wa-base-devices-title,
+.wa-base-auth-title,
+.wa-admin-wizard-title,
+.wa-notfound-title {
+  font-family: var(--wa-font-heading);
+}
+
+.wa-subtitle,
+.wa-help,
+.wa-base-guide-text,
+.wa-base-playlists-text,
+.wa-base-subscribers-text,
+.wa-base-devices-text,
+.wa-base-auth-subtitle,
+.wa-admin-wizard-text {
+  color: var(--wa-text-soft);
+}
+
+.wa-base-tile {
+  position: relative;
+  overflow: hidden;
+  min-height: 280px;
+  border-radius: 18px;
+  border: 1px solid var(--wa-border);
+  background:
+    radial-gradient(circle at 80% 15%, rgba(87, 217, 255, 0.18), transparent 48%),
+    linear-gradient(165deg, rgba(14, 31, 70, 0.92), rgba(10, 22, 49, 0.86));
+  box-shadow: 0 14px 26px rgba(2, 8, 26, 0.42);
+}
+
+.wa-base-tile::after {
+  content: '';
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  right: -68px;
+  bottom: -72px;
+  background: radial-gradient(circle, rgba(255, 141, 99, 0.18), transparent 68%);
+  pointer-events: none;
+}
+
+.wa-base-tile > * {
+  position: relative;
+  z-index: 1;
+}
+
+.wa-base-tile:hover {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(126, 244, 220, 0.76);
+}
+
+.wa-base-tile.is-active {
+  border-color: rgba(126, 244, 220, 0.84);
+  background:
+    radial-gradient(circle at 80% 15%, rgba(87, 217, 255, 0.25), transparent 48%),
+    linear-gradient(165deg, rgba(22, 45, 96, 0.94), rgba(13, 29, 64, 0.9));
+  box-shadow:
+    0 20px 32px rgba(2, 8, 26, 0.5),
+    inset 0 0 0 1px rgba(126, 244, 220, 0.3);
+}
+
+.wa-base-icon {
+  filter: drop-shadow(0 8px 16px rgba(8, 23, 54, 0.45));
+}
+
+.wa-input,
+.wa-base-auth-input {
+  border-radius: 12px;
+  border-color: rgba(141, 184, 250, 0.48);
+  background: rgba(6, 18, 43, 0.84);
+}
+
+.wa-input:focus,
+.wa-base-auth-input:focus {
+  border-color: rgba(126, 244, 220, 0.88);
+  box-shadow: 0 0 0 2px rgba(87, 217, 255, 0.24);
+}
+
+.wa-btn,
+.wa-base-auth-btn {
+  border-radius: 12px;
+  border-color: rgba(139, 184, 250, 0.42);
+  background:
+    linear-gradient(180deg, rgba(49, 89, 177, 0.42), rgba(23, 43, 88, 0.55)),
+    rgba(13, 27, 59, 0.86);
+  transition: transform 0.18s ease, border-color 0.2s ease, filter 0.2s ease;
+}
+
+.wa-btn:hover,
+.wa-base-auth-btn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(126, 244, 220, 0.76);
+  filter: brightness(1.06);
+}
+
+.wa-btn--primary,
+.wa-base-auth-btn--primary {
+  border-color: rgba(115, 246, 216, 0.92);
+  background: linear-gradient(135deg, #57d9ff 0%, #3ab4da 42%, #3ee8ba 100%);
+  color: #04222e;
+}
+
+.wa-btn--ghost,
+.wa-base-auth-btn--ghost {
+  background: rgba(8, 18, 43, 0.74);
+}
+
+.wa-admin-item,
+.wa-base-playlists-custom-item,
+.wa-base-playlists-draft-item,
+.wa-base-playlists-source-item,
+.wa-base-devices-item,
+.wa-base-subscribers-item {
+  transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+}
+
+.wa-admin-item:hover,
+.wa-base-playlists-custom-item:hover,
+.wa-base-playlists-draft-item:hover,
+.wa-base-playlists-source-item:hover,
+.wa-base-devices-item:hover,
+.wa-base-subscribers-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(126, 244, 220, 0.72);
+}
+
+.wa-base-auth-overlay {
+  background: rgba(3, 9, 22, 0.74);
+  backdrop-filter: blur(6px);
+}
+
+.wa-admin-wizard-step.is-active {
+  border-color: var(--wa-border-strong);
+  box-shadow: 0 0 0 1px rgba(126, 244, 220, 0.22) inset;
+}
+
+.wa-admin-wizard-step.is-done {
+  background: rgba(16, 69, 73, 0.42);
+}
+
+@keyframes wa-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wa-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.wa-shell,
+.wa-base-guide,
+.wa-base-playlists,
+.wa-base-subscribers,
+.wa-base-devices {
+  animation: wa-fade-up 0.45s ease both;
+}
+
+.wa-base-auth-card {
+  animation: wa-scale-in 0.24s ease both;
+}
+
+.wa-base-tile {
+  animation: wa-fade-up 0.5s ease both;
+}
+
+.wa-base-tile:nth-child(1) {
+  animation-delay: 0.02s;
+}
+
+.wa-base-tile:nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.wa-base-tile:nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.wa-base-tile:nth-child(4) {
+  animation-delay: 0.2s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-shell,
+  .wa-base-guide,
+  .wa-base-playlists,
+  .wa-base-subscribers,
+  .wa-base-devices,
+  .wa-base-auth-card,
+  .wa-base-tile {
+    animation: none;
+  }
+
+  .wa-btn,
+  .wa-base-auth-btn,
+  .wa-base-tile,
+  .wa-admin-item,
+  .wa-base-playlists-custom-item,
+  .wa-base-playlists-draft-item,
+  .wa-base-playlists-source-item,
+  .wa-base-devices-item,
+  .wa-base-subscribers-item {
+    transition: none;
+  }
+}
+
+@media (max-width: 760px) {
+  .wa-base-topbar {
+    padding: 14px;
+  }
+
+  .wa-base-grid {
+    gap: 12px;
+  }
+
+  .wa-base-tile {
+    min-height: 220px;
+    border-radius: 14px;
+  }
+
+  .wa-header h1 {
+    font-size: clamp(24px, 6.5vw, 34px);
+  }
+}
+
+/* Simpler admin arrangement */
+.wa-main {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 1140px;
+  margin-inline: auto;
+  gap: 14px;
+}
+
+.wa-left {
+  border-right: 0;
+  padding-right: 0;
+  overflow: visible;
+  display: grid;
+  gap: 12px;
+}
+
+.wa-admin-block {
+  border-radius: 16px;
+  border: 1px solid rgba(139, 183, 247, 0.32);
+  background: rgba(12, 24, 52, 0.74);
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.wa-admin-block-title {
+  margin: 0;
+  font-family: var(--wa-font-heading);
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(223, 240, 255, 0.94);
+}
+
+.wa-left .wa-row {
+  grid-template-columns: 1fr;
+  gap: 6px;
+  margin-bottom: 0;
+}
+
+.wa-left .wa-label {
+  font-size: 14px;
+  line-height: 1.2;
+  color: rgba(219, 235, 255, 0.92);
+}
+
+.wa-left .wa-row--actions .wa-label {
+  color: rgba(204, 227, 255, 0.82);
+}
+
+.wa-admin-list {
+  margin-bottom: 0;
+}
+
+.wa-right {
+  order: -1;
+  padding-left: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wa-right-title,
+.wa-status,
+.wa-help {
+  grid-column: 1 / -1;
+}
+
+.wa-right-title {
+  margin-bottom: 0;
+}
+
+.wa-help {
+  margin: 0;
+  min-height: 0;
+  font-size: 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(136, 183, 255, 0.32);
+  background: rgba(12, 25, 54, 0.72);
+  padding: 10px 12px;
+}
+
+.wa-meta {
+  margin-top: 0;
+  min-height: 74px;
+}
+
+@media (max-width: 1100px) {
+  .wa-right {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Dashboard-like arrangement (sidebar + topbar + content) */
+.wa-ott--studio {
+  padding: 0;
+}
+
+.wa-studio-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+}
+
+.wa-studio-sidebar {
+  border-right: 1px solid rgba(137, 184, 247, 0.34);
+  background: linear-gradient(180deg, rgba(9, 20, 46, 0.92), rgba(9, 20, 42, 0.88));
+  padding: 18px 14px;
+  display: grid;
+  grid-template-rows: auto auto auto 1fr;
+  gap: 14px;
+}
+
+.wa-studio-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wa-studio-brand-mark {
+  color: #5dd9ff;
+  font-size: 18px;
+}
+
+.wa-studio-brand-title {
+  margin: 0;
+  font-family: var(--wa-font-heading);
+  font-size: 24px;
+  line-height: 1;
+}
+
+.wa-studio-brand-subtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(204, 224, 255, 0.75);
+}
+
+.wa-studio-profile {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  border-radius: 12px;
+  border: 1px solid rgba(136, 184, 247, 0.34);
+  background: rgba(15, 29, 64, 0.66);
+  padding: 10px;
+}
+
+.wa-studio-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #57d9ff, #3bc3ec 55%, #58e8b4);
+  color: #06212d;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wa-studio-profile-main {
+  min-width: 0;
+}
+
+.wa-studio-profile-email {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #eaf6ff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wa-studio-profile-role-row {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.wa-studio-profile-role {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: rgba(202, 223, 255, 0.86);
+}
+
+.wa-studio-logout-btn {
+  min-height: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(121, 186, 252, 0.66);
+  background: rgba(8, 27, 72, 0.78);
+  color: rgba(227, 242, 255, 0.92);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.wa-studio-logout-btn:hover {
+  border-color: rgba(109, 236, 178, 0.86);
+  background: rgba(14, 46, 110, 0.88);
+}
+
+.wa-studio-online-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #48e6a8;
+  box-shadow: 0 0 0 2px rgba(72, 230, 168, 0.2);
+}
+
+.wa-studio-menu {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+}
+
+.wa-studio-menu-item {
+  min-height: 42px;
+  text-align: left;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: rgba(13, 29, 66, 0.56);
+  color: rgba(222, 238, 255, 0.92);
+  padding: 8px 10px;
+  font-family: var(--wa-font-body);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+}
+
+.wa-studio-menu-item:hover {
+  border-color: rgba(118, 241, 211, 0.62);
+  background: rgba(17, 39, 84, 0.72);
+  transform: translateX(2px);
+}
+
+.wa-studio-menu-item.is-active {
+  border-color: rgba(118, 241, 211, 0.75);
+  background: linear-gradient(180deg, rgba(87, 217, 255, 0.2), rgba(28, 74, 139, 0.3));
+}
+
+.wa-add-top-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.wa-add-top-menu-item {
+  min-height: 36px;
+  border-radius: 9px;
+  border: 1px solid rgba(118, 241, 211, 0.35);
+  background: rgba(15, 35, 74, 0.72);
+  color: rgba(227, 240, 255, 0.94);
+  padding: 7px 12px;
+  font-family: var(--wa-font-body);
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background 0.18s ease;
+}
+
+.wa-add-top-menu-item:hover {
+  border-color: rgba(118, 241, 211, 0.62);
+  background: rgba(24, 53, 112, 0.8);
+}
+
+.wa-add-top-menu-item.is-active {
+  border-color: rgba(118, 241, 211, 0.78);
+  background: linear-gradient(180deg, rgba(87, 217, 255, 0.2), rgba(28, 74, 139, 0.3));
+}
+
+.wa-add-playlist-focus-text {
+  margin: 0;
+  color: rgba(218, 236, 255, 0.9);
+  font-size: 13px;
+}
+
+.wa-constructor-create-card {
+  border-color: rgba(84, 221, 252, 0.68);
+  background: rgba(22, 67, 142, 0.5);
+  padding: 12px;
+  gap: 10px;
+}
+
+.wa-constructor-create-card .wa-input {
+  min-height: 44px;
+}
+
+.wa-constructor-create-actions {
+  justify-content: flex-start;
+}
+
+.wa-studio-main {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.wa-header--studio {
+  border-bottom: 1px solid rgba(137, 184, 247, 0.34);
+  padding: 14px 18px;
+  background: linear-gradient(90deg, rgba(8, 30, 69, 0.84), rgba(10, 58, 121, 0.5));
+  align-items: center;
+}
+
+.wa-main--studio {
+  max-width: none;
+  margin: 0;
+  padding: 16px 18px 22px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 12px;
+  align-items: start;
+}
+
+.wa-main--studio .wa-left {
+  gap: 10px;
+}
+
+.wa-main--studio .wa-right {
+  order: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.wa-main--studio .wa-help {
+  font-size: 13px;
+}
+
+@media (max-width: 1100px) {
+  .wa-studio-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .wa-studio-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid rgba(137, 184, 247, 0.34);
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .wa-studio-brand {
+    grid-column: 1 / 2;
+  }
+
+  .wa-studio-profile {
+    grid-column: 1 / 2;
+  }
+
+  .wa-studio-menu {
+    grid-column: 1 / -1;
+    display: flex;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  .wa-studio-menu-item {
+    white-space: nowrap;
+  }
+
+  .wa-main--studio {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .wa-header--studio {
+    padding: 12px;
+    align-items: flex-start;
+  }
+
+  .wa-main--studio {
+    padding: 12px;
+  }
+
+  .wa-studio-sidebar {
+    padding: 12px;
+    grid-template-columns: 1fr;
+  }
+
 }

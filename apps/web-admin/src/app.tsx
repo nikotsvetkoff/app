@@ -113,7 +113,27 @@ interface CustomPlaylistDetailItem extends CustomPlaylistListItem {
   channels: PlaylistChannelItem[];
 }
 
+interface AuditLogItem {
+  id: string;
+  action: string;
+  method: string | null;
+  path: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  success: boolean;
+  statusCode: number | null;
+  details: unknown;
+  userId: string | null;
+  userEmail: string | null;
+  createdAt: string;
+}
+
+type AuditSection = 'registration' | 'playlists' | 'devices' | 'internal';
+type AuditOutcome = 'success' | 'error';
 type LandingTile = 'playlists' | 'devices' | 'cabinet' | 'how';
+type StudioSection = 'admins' | 'forms' | 'playlists' | 'constructor' | 'devices' | 'account' | 'logs';
+type AddMenuItem = 'playlist' | 'device' | 'subscriber';
+type PlaylistsSubMenuItem = 'base' | 'modified';
 
 const HELP_TEXT: Record<FocusTopic, string> = {
   account:
@@ -125,7 +145,7 @@ const HELP_TEXT: Record<FocusTopic, string> = {
   pairing:
     'Введите код с плеера, выберите клиента и режим плейлиста для устройства (global/source/custom).',
   history:
-    'История показывает каждую подтвержденную привязку для выбранного клиента: код, устройство и дата.',
+    'Журнал показывает действия администраторов: метод, endpoint, результат и время выполнения.',
   sources:
     'Добавляйте несколько базовых плейлистов с названиями, собирайте custom из каналов и отслеживайте, из каких источников они собраны.',
   session: 'Активная сессия означает, что в браузере есть действительный токен администратора.',
@@ -463,6 +483,48 @@ const decodeEmailFromToken = (token: string | null): string => {
   }
 };
 
+const formatAuditDetails = (details: unknown): string => {
+  if (details === null || details === undefined) {
+    return '-';
+  }
+
+  if (typeof details === 'string') {
+    return details.length > 1000 ? `${details.slice(0, 1000)}...` : details;
+  }
+
+  try {
+    const serialized = JSON.stringify(details, null, 2);
+    return serialized.length > 1600 ? `${serialized.slice(0, 1600)}...` : serialized;
+  } catch {
+    return String(details);
+  }
+};
+
+const getAuditIssueDescription = (details: unknown, fallback: string): string => {
+  if (!details || typeof details !== 'object') {
+    return fallback;
+  }
+
+  const source = details as Record<string, unknown>;
+  const error = source.error;
+  if (error && typeof error === 'object') {
+    const message = (error as Record<string, unknown>).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  const result = source.result;
+  if (result && typeof result === 'object') {
+    const message = (result as Record<string, unknown>).message;
+    if (typeof message === 'string' && message.trim().length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+};
+
 export const App: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -516,7 +578,6 @@ export const App: React.FC = () => {
   const [selectedCustomPlaylistId, setSelectedCustomPlaylistId] = useState('');
   const [selectedCustomPlaylistName, setSelectedCustomPlaylistName] = useState('');
   const [newCustomPlaylistName, setNewCustomPlaylistName] = useState('');
-  const [cloneCustomPlaylistName, setCloneCustomPlaylistName] = useState('');
   const [playlistSourceSearch, setPlaylistSourceSearch] = useState('');
   const [selectedSourceChannelIds, setSelectedSourceChannelIds] = useState<string[]>([]);
   const [customDraftChannelIds, setCustomDraftChannelIds] = useState<string[]>([]);
@@ -548,7 +609,16 @@ export const App: React.FC = () => {
   const [landingMenuOpen, setLandingMenuOpen] = useState(false);
   const [landingPlaylistsPageOpen, setLandingPlaylistsPageOpen] = useState(false);
   const [landingSubscribersPageOpen, setLandingSubscribersPageOpen] = useState(false);
-  const [dashboardOpen, setDashboardOpen] = useState(false);
+  const [studioSection, setStudioSection] = useState<StudioSection>('forms');
+  const [addMenuItem, setAddMenuItem] = useState<AddMenuItem>('playlist');
+  const [playlistsSubMenuItem, setPlaylistsSubMenuItem] = useState<PlaylistsSubMenuItem>('base');
+  const [expandedDeviceClientId, setExpandedDeviceClientId] = useState('');
+  const [expandedFinalClientId, setExpandedFinalClientId] = useState('');
+  const [finalClientDeviceDrafts, setFinalClientDeviceDrafts] = useState<Record<string, string>>({});
+  const [auditSection, setAuditSection] = useState<AuditSection>('registration');
+  const [auditOutcome, setAuditOutcome] = useState<AuditOutcome>('error');
+  const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
+  const [auditBusy, setAuditBusy] = useState(false);
 
   const token = useMemo(() => getStoredToken(), [tokenRevision]);
   const tokenStorageLabel = useMemo(() => getTokenStorageLabel(), [tokenRevision]);
@@ -567,6 +637,60 @@ export const App: React.FC = () => {
     () => clients.find((client) => client.id === selectedClientId) ?? null,
     [clients, selectedClientId]
   );
+
+  const deviceGroupsByClient = useMemo(() => {
+    const byClientId = new Map<string, PairedDeviceItem[]>();
+    const unassignedDevices: PairedDeviceItem[] = [];
+    const knownClientIds = new Set<string>();
+
+    for (const device of pairedDevices) {
+      const clientId = device.clientId?.trim() ?? '';
+      if (!clientId) {
+        unassignedDevices.push(device);
+        continue;
+      }
+
+      const bucket = byClientId.get(clientId);
+      if (bucket) {
+        bucket.push(device);
+      } else {
+        byClientId.set(clientId, [device]);
+      }
+    }
+
+    const rows = clients.map((client) => ({
+      id: client.id,
+      name: `${client.lastName} ${client.firstName}`.trim() || client.phone || 'Client',
+      meta: client.phone,
+      devices: byClientId.get(client.id) ?? []
+    }));
+    for (const client of clients) {
+      knownClientIds.add(client.id);
+    }
+
+    for (const [clientId, devices] of byClientId.entries()) {
+      if (knownClientIds.has(clientId)) {
+        continue;
+      }
+      rows.push({
+        id: `__missing__${clientId}`,
+        name: 'Client inactiv',
+        meta: clientId,
+        devices
+      });
+    }
+
+    if (unassignedDevices.length > 0) {
+      rows.push({
+        id: '__unassigned__',
+        name: 'Fara abonat',
+        meta: '',
+        devices: unassignedDevices
+      });
+    }
+
+    return rows;
+  }, [clients, pairedDevices]);
 
   const playlistChannelsById = useMemo(
     () => new Map(playlistChannels.map((channel) => [channel.id, channel] as const)),
@@ -688,6 +812,54 @@ export const App: React.FC = () => {
       setLandingMenuOpen(false);
     }
   }, [landingAuthOpen]);
+
+  useEffect(() => {
+    if (deviceGroupsByClient.length === 0) {
+      if (expandedDeviceClientId) {
+        setExpandedDeviceClientId('');
+      }
+      return;
+    }
+
+    // Allow collapsed state when user toggles the currently open client.
+    if (!expandedDeviceClientId) {
+      return;
+    }
+
+    const exists = deviceGroupsByClient.some((group) => group.id === expandedDeviceClientId);
+    if (!exists) {
+      const firstWithDevices = deviceGroupsByClient.find((group) => group.devices.length > 0) ?? deviceGroupsByClient[0];
+      if (firstWithDevices && firstWithDevices.id !== expandedDeviceClientId) {
+        setExpandedDeviceClientId(firstWithDevices.id);
+      }
+    }
+  }, [deviceGroupsByClient, expandedDeviceClientId]);
+
+  useEffect(() => {
+    setFinalClientDeviceDrafts((current) => {
+      const next: Record<string, string> = {};
+      for (const client of clients) {
+        next[client.id] = String(client.devicesAllowed);
+      }
+
+      const currentKeys = Object.keys(current);
+      const nextKeys = Object.keys(next);
+      if (currentKeys.length === nextKeys.length && nextKeys.every((key) => current[key] === next[key])) {
+        return current;
+      }
+
+      return next;
+    });
+
+    if (!expandedFinalClientId) {
+      return;
+    }
+
+    const exists = clients.some((client) => client.id === expandedFinalClientId);
+    if (!exists) {
+      setExpandedFinalClientId('');
+    }
+  }, [clients, expandedFinalClientId]);
 
   useEffect(() => {
     if (!editingClientId) {
@@ -896,6 +1068,27 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  const fetchAuditLogs = useCallback(
+    (
+      authToken: string,
+      filters: {
+        section: AuditSection;
+        outcome: 'all' | AuditOutcome;
+      }
+    ): Promise<AuditLogItem[]> => {
+    const params = new URLSearchParams({
+      limit: '500',
+      scope: 'all',
+      section: filters.section,
+      outcome: filters.outcome
+    });
+    return fetchJson<AuditLogItem[]>(`${API_BASE}/audit?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+    },
+    []
+  );
+
   const fetchCustomPlaylistDetail = useCallback(
     (authToken: string, playlistId: string): Promise<CustomPlaylistDetailItem> => {
       return fetchJson<CustomPlaylistDetailItem>(`${API_BASE}/playlist/custom/${playlistId}/channels`, {
@@ -1039,11 +1232,38 @@ export const App: React.FC = () => {
     ]
   );
 
+  const loadAuditLogs = useCallback(
+    async (
+      overrideToken?: string,
+      overrideFilters?: {
+        section?: AuditSection;
+        outcome?: 'all' | AuditOutcome;
+      }
+    ): Promise<void> => {
+      setAuditBusy(true);
+      try {
+        const authToken = requireToken(overrideToken);
+        const section = overrideFilters?.section ?? auditSection;
+        const filters = {
+          section,
+          outcome: overrideFilters?.outcome ?? (section === 'internal' ? 'error' : auditOutcome)
+        } as const;
+        const rows = await fetchAuditLogs(authToken, filters);
+        setAuditLogs(rows);
+      } catch (error) {
+        reportError(error);
+      } finally {
+        setAuditBusy(false);
+      }
+    },
+    [auditOutcome, auditSection, fetchAuditLogs, reportError, requireToken]
+  );
+
   useEffect(() => {
     if (!token) {
-      setDashboardOpen(false);
       setLandingPlaylistsPageOpen(false);
       setLandingSubscribersPageOpen(false);
+      setAddMenuItem('playlist');
       setClients([]);
       setAdmins([]);
       setAdminSearchQuery('');
@@ -1073,12 +1293,14 @@ export const App: React.FC = () => {
       setPlaylistUrl('');
       clearCustomPlaylistEditor();
       setNewCustomPlaylistName('');
-      setCloneCustomPlaylistName('');
       setPlaylistSourceSearch('');
       setSelectedClientId('');
       setEditingClientId('');
       setPairPlaylistMode('GLOBAL');
       setPairCustomPlaylistId('');
+      setAuditLogs([]);
+      setAuditSection('registration');
+      setAuditOutcome('error');
       return;
     }
     void loadClients(token);
@@ -1086,6 +1308,17 @@ export const App: React.FC = () => {
     void loadDevices(token);
     void loadPlaylistWorkspace(token);
   }, [clearCustomPlaylistEditor, loadAdmins, loadClients, loadDevices, loadPlaylistWorkspace, token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    void loadAuditLogs(token, {
+      section: auditSection,
+      outcome: auditSection === 'internal' ? 'error' : auditOutcome
+    });
+  }, [auditOutcome, auditSection, loadAuditLogs, token]);
 
   useEffect(() => {
     if (!token || !landingPlaylistsPageOpen) {
@@ -1134,7 +1367,8 @@ export const App: React.FC = () => {
       setRegisterModalOpen(false);
       setForgotModalOpen(false);
       setLandingAuthOpen(false);
-      setDashboardOpen(false);
+      setStudioSection('forms');
+      setAddMenuItem('playlist');
     } catch (error) {
       reportError(error);
     }
@@ -1275,7 +1509,8 @@ export const App: React.FC = () => {
       setRegisterCodeError('');
       setRegisterModalOpen(false);
       setLandingAuthOpen(false);
-      setDashboardOpen(false);
+      setStudioSection('forms');
+      setAddMenuItem('playlist');
       setStatusTone('ok');
       setStatusMessage('Код подтвержден. Регистрация завершена.');
       setFocusTopic('session');
@@ -1396,7 +1631,6 @@ export const App: React.FC = () => {
   const logout = () => {
     clearStoredToken();
     setTokenRevision((value) => value + 1);
-    setDashboardOpen(false);
     setLandingPlaylistsPageOpen(false);
     setLandingSubscribersPageOpen(false);
     setLandingAuthOpen(false);
@@ -1758,6 +1992,72 @@ export const App: React.FC = () => {
     setClientDevicesAllowed('1');
   };
 
+  const toggleFinalClientCard = (client: ClientItem): void => {
+    setExpandedFinalClientId((current) => (current === client.id ? '' : client.id));
+    setFinalClientDeviceDrafts((current) => {
+      if (current[client.id] !== undefined) {
+        return current;
+      }
+      return {
+        ...current,
+        [client.id]: String(client.devicesAllowed)
+      };
+    });
+  };
+
+  const setFinalClientDevicesDraft = (clientId: string, value: string): void => {
+    setFinalClientDeviceDrafts((current) => ({
+      ...current,
+      [clientId]: value
+    }));
+  };
+
+  const resetFinalClientDevicesDraft = (client: ClientItem): void => {
+    setFinalClientDeviceDrafts((current) => ({
+      ...current,
+      [client.id]: String(client.devicesAllowed)
+    }));
+  };
+
+  const saveFinalClientDevicesAllowed = async (client: ClientItem): Promise<void> => {
+    try {
+      const rawValue = (finalClientDeviceDrafts[client.id] ?? String(client.devicesAllowed)).trim();
+      const devicesAllowed = Number.parseInt(rawValue, 10);
+      if (!Number.isFinite(devicesAllowed) || devicesAllowed < 1) {
+        throw new Error('Cantitatea de device-uri trebuie sa fie cel putin 1.');
+      }
+
+      if (devicesAllowed === client.devicesAllowed) {
+        setStatusTone('ok');
+        setStatusMessage(`Limita pentru ${client.lastName} ${client.firstName} este deja ${client.devicesAllowed}.`);
+        return;
+      }
+
+      setClientBusy(true);
+      const authToken = requireToken();
+      const updated = await fetchJson<ClientItem>(`${API_BASE}/clients/${client.id}`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({
+          firstName: client.firstName,
+          lastName: client.lastName,
+          phone: client.phone,
+          address: client.address,
+          devicesAllowed
+        })
+      });
+
+      await syncClients(authToken, updated.id);
+      setStatusTone('ok');
+      setStatusMessage(`Limita device-uri actualizata: ${updated.lastName} ${updated.firstName} -> ${updated.devicesAllowed}.`);
+      setFocusTopic('clients');
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setClientBusy(false);
+    }
+  };
+
   const saveEditedClient = async (): Promise<void> => {
     try {
       if (!editingClientId) {
@@ -1885,6 +2185,24 @@ export const App: React.FC = () => {
         customPlaylistId
       }
     }));
+  };
+
+  const getDevicePlaylistSelectionValue = (device: PairedDeviceItem): string => {
+    const draft = getDevicePlaylistDraft(device);
+    return draft.mode === 'CUSTOM' ? `CUSTOM:${draft.customPlaylistId}` : draft.mode;
+  };
+
+  const setDevicePlaylistSelectionValue = (deviceId: string, selectionValue: string): void => {
+    if (selectionValue === 'GLOBAL' || selectionValue === 'SOURCE') {
+      setDevicePlaylistModeDraft(deviceId, selectionValue);
+      return;
+    }
+
+    if (selectionValue.startsWith('CUSTOM:')) {
+      const customPlaylistId = selectionValue.slice('CUSTOM:'.length);
+      setDevicePlaylistModeDraft(deviceId, 'CUSTOM');
+      setDeviceCustomPlaylistDraft(deviceId, customPlaylistId);
+    }
   };
 
   const saveDevicePlaylistAssignment = async (device: PairedDeviceItem): Promise<void> => {
@@ -2154,7 +2472,6 @@ export const App: React.FC = () => {
       setCustomPlaylists(rows);
       await loadCustomPlaylistEditor(authToken, created.id);
       setNewCustomPlaylistName('');
-      setCloneCustomPlaylistName('');
       setStatusTone('ok');
       setStatusMessage(`Создан пользовательский плейлист: ${created.name}.`);
       setFocusTopic('sources');
@@ -2232,47 +2549,6 @@ export const App: React.FC = () => {
 
       setStatusTone('ok');
       setStatusMessage('Изменения пользовательского плейлиста сохранены.');
-      setFocusTopic('sources');
-    } catch (error) {
-      reportError(error);
-    } finally {
-      setPlaylistBusy(false);
-    }
-  };
-
-  const cloneCurrentCustomPlaylist = async (): Promise<void> => {
-    try {
-      if (!selectedCustomPlaylistId) {
-        throw new Error('Сначала выберите пользовательский плейлист.');
-      }
-
-      const cloneName =
-        cloneCustomPlaylistName.trim() || `${selectedCustomPlaylistName.trim() || 'Плейлист'} (копия)`;
-      const authToken = requireToken();
-      setPlaylistBusy(true);
-
-      const created = await fetchJson<CustomPlaylistListItem>(`${API_BASE}/playlist/custom`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ name: cloneName })
-      });
-
-      await fetchJson<CustomPlaylistDetailItem>(`${API_BASE}/playlist/custom/${created.id}/channels`, {
-        method: 'PUT',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ channelIds: customDraftChannelIds })
-      });
-
-      const [rows, status] = await Promise.all([
-        fetchCustomPlaylists(authToken),
-        fetchPlaylistStatus(authToken)
-      ]);
-      setCustomPlaylists(rows);
-      setPlaylistStatus(status);
-      await loadCustomPlaylistEditor(authToken, created.id);
-      setCloneCustomPlaylistName('');
-      setStatusTone('ok');
-      setStatusMessage(`Создан новый плейлист из выбранных каналов: ${cloneName}.`);
       setFocusTopic('sources');
     } catch (error) {
       reportError(error);
@@ -2393,11 +2669,11 @@ export const App: React.FC = () => {
 
   const openLandingAuth = () => {
     if (token) {
-      setDashboardOpen(true);
+      setStudioSection('forms');
+      setAddMenuItem('playlist');
       setLandingAuthOpen(false);
       setRegisterModalOpen(false);
       setForgotModalOpen(false);
-      setFocusTopic('session');
       return;
     }
 
@@ -2446,8 +2722,35 @@ export const App: React.FC = () => {
   };
 
   const continueWizardToPlaylists = (): void => {
-    setDashboardOpen(false);
-    openPlaylistsPage();
+    setStudioSection('forms');
+    setAddMenuItem('playlist');
+    setFocusTopic('sources');
+    if (token) {
+      void Promise.all([loadPlaylistWorkspace(token), loadClients(token, selectedClientId)]);
+    }
+  };
+
+  const openAddMenuItem = (item: AddMenuItem): void => {
+    setAddMenuItem(item);
+
+    if (!token) {
+      return;
+    }
+
+    if (item === 'playlist') {
+      setFocusTopic('sources');
+      void loadPlaylistWorkspace(token);
+      return;
+    }
+
+    if (item === 'device') {
+      setFocusTopic('pairing');
+      void Promise.all([loadDevices(token), loadClients(token, selectedClientId), loadPlaylistWorkspace(token)]);
+      return;
+    }
+
+    setFocusTopic('clients');
+    void loadClients(token, selectedClientId);
   };
 
   const openSubscribersPage = (): void => {
@@ -2502,7 +2805,7 @@ export const App: React.FC = () => {
     );
   }
 
-  if (!token || !dashboardOpen) {
+  if (!token) {
     return (
       <div className="wa-ott wa-ott--base">
         <div className="wa-base-shell">
@@ -2534,7 +2837,7 @@ export const App: React.FC = () => {
                 className={landingActiveTile === 'cabinet' ? 'wa-base-top-nav-item is-active' : 'wa-base-top-nav-item'}
                 onClick={openSubscribersPage}
               >
-                Абоненты
+                Account
               </button>
               <button
                 type="button"
@@ -2545,21 +2848,9 @@ export const App: React.FC = () => {
               </button>
             </nav>
 
-            {token ? (
-              <div className="wa-base-top-session">
-                <div className="wa-base-top-account">
-                  <p className="wa-base-top-account-title">Добро пожаловать</p>
-                  <p className="wa-base-top-account-email">{welcomeEmail || 'администратор'}</p>
-                </div>
-                <button type="button" className="wa-base-top-login" onClick={() => setDashboardOpen(true)}>
-                  Админ-панель
-                </button>
-              </div>
-            ) : (
-              <button type="button" className="wa-base-top-login" onClick={openLandingAuth}>
-                Вход администратора
-              </button>
-            )}
+            <button type="button" className="wa-base-top-login" onClick={openLandingAuth}>
+              Autentificare Admin
+            </button>
           </header>
 
           <button
@@ -2617,7 +2908,7 @@ export const App: React.FC = () => {
                 openSubscribersPage();
               }}
             >
-              Абоненты
+              Account
             </button>
             <button
               type="button"
@@ -2634,14 +2925,14 @@ export const App: React.FC = () => {
               className="wa-base-side-menu-item wa-base-side-menu-item--accent"
               onClick={() => {
                 if (token) {
-                  setDashboardOpen(true);
+                  openSubscribersPage();
                 } else {
                   openLandingAuth();
                 }
                 setLandingMenuOpen(false);
               }}
             >
-              {token ? 'Админ-панель' : 'Вход администратора'}
+              {token ? 'Account' : 'Вход администратора'}
             </button>
             {token ? (
               <button
@@ -2877,24 +3168,6 @@ export const App: React.FC = () => {
                             </div>
                           </div>
 
-                          <label className="wa-row">
-                            <span className="wa-label">Клонировать как</span>
-                            <input
-                              className="wa-input"
-                              value={cloneCustomPlaylistName}
-                              onChange={(event) => setCloneCustomPlaylistName(event.target.value)}
-                              placeholder="Custom copy"
-                            />
-                          </label>
-                          <div className="wa-row wa-row--actions">
-                            <span className="wa-label">Копия</span>
-                            <div className="wa-actions">
-                              <button type="button" className="wa-btn" onClick={() => void cloneCurrentCustomPlaylist()} disabled={playlistBusy}>
-                                Создать копию
-                              </button>
-                            </div>
-                          </div>
-
                           <p className="wa-base-playlists-meta">
                             Каналов в черновике: {customDraftChannels.length}
                             {hasCustomDraftChanges ? ' (есть несохраненные изменения)' : ''}
@@ -3036,8 +3309,7 @@ export const App: React.FC = () => {
                 </button>
               </div>
               <p className="wa-base-subscribers-text">
-                Отдельная страница регистрации абонентов. Админ-панель остается отдельной и открывается только кнопкой
-                сверху справа.
+                Раздел аккаунтов встроен в основную страницу. Управление происходит прямо здесь, без отдельного экрана.
               </p>
               {editingClientId ? (
                 <p className="wa-base-subscribers-text">
@@ -3194,7 +3466,7 @@ export const App: React.FC = () => {
                   onClick={openSubscribersPage}
                 >
                   <span className="wa-base-icon wa-base-icon--cabinet" aria-hidden="true" />
-                  <span className="wa-base-tile-label">абоненты</span>
+                  <span className="wa-base-tile-label">account</span>
                 </button>
 
                 <button
@@ -3317,47 +3589,26 @@ export const App: React.FC = () => {
                                     Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
                                   </p>
                                   <p className="wa-base-devices-item-meta">
-                                    Текущий режим: {device.playlistMode}
+                                    Playlist actual: {device.playlistMode}
                                     {device.customPlaylistName ? ` (${device.customPlaylistName})` : ''}
                                   </p>
 
                                   <label className="wa-row">
-                                    <span className="wa-label">Режим</span>
+                                    <span className="wa-label">Playlist dorit</span>
                                     <select
                                       className="wa-input"
-                                      value={draft.mode}
-                                      onChange={(event) =>
-                                        setDevicePlaylistModeDraft(
-                                          device.id,
-                                          event.target.value as DevicePlaylistMode
-                                        )
-                                      }
+                                      value={getDevicePlaylistSelectionValue(device)}
+                                      onChange={(event) => setDevicePlaylistSelectionValue(device.id, event.target.value)}
                                     >
-                                      <option value="GLOBAL">GLOBAL</option>
-                                      <option value="SOURCE">SOURCE</option>
-                                      <option value="CUSTOM">CUSTOM</option>
+                                      <option value="GLOBAL">GLOBAL (implicit)</option>
+                                      <option value="SOURCE">SOURCE (din sursa)</option>
+                                      {customPlaylists.map((playlist) => (
+                                        <option key={playlist.id} value={`CUSTOM:${playlist.id}`}>
+                                          {playlist.name} ({playlist.channelsCount} canale)
+                                        </option>
+                                      ))}
                                     </select>
                                   </label>
-
-                                  {draft.mode === 'CUSTOM' ? (
-                                    <label className="wa-row">
-                                      <span className="wa-label">Custom-плейлист</span>
-                                      <select
-                                        className="wa-input"
-                                        value={draft.customPlaylistId}
-                                        onChange={(event) =>
-                                          setDeviceCustomPlaylistDraft(device.id, event.target.value)
-                                        }
-                                      >
-                                        <option value="">Выберите custom-плейлист</option>
-                                        {customPlaylists.map((playlist) => (
-                                          <option key={playlist.id} value={playlist.id}>
-                                            {playlist.name} ({playlist.channelsCount} каналов)
-                                          </option>
-                                        ))}
-                                      </select>
-                                    </label>
-                                  ) : null}
 
                                   <div className="wa-actions">
                                     <button
@@ -3397,7 +3648,7 @@ export const App: React.FC = () => {
                   <ol className="wa-base-guide-list">
                     <li>
                       <strong>Войти как администратор.</strong> Нажмите «Вход администратора», введите email/пароль и
-                      откройте админ-панель.
+                      откройте нужный раздел через кнопки Playlists, Devices или Account.
                     </li>
                     <li>
                       <strong>Добавить источники.</strong> В блоке источников укажите рабочий URL плейлиста
@@ -3784,31 +4035,147 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="wa-ott">
-      <div className="wa-shell">
-        <header className="wa-header">
+    <div className="wa-ott wa-ott--studio">
+      <div className="wa-studio-shell">
+        <aside className="wa-studio-sidebar">
+          <div className="wa-studio-brand">
+            <span className="wa-studio-brand-mark" aria-hidden="true">
+              ★
+            </span>
+            <div>
+              <p className="wa-studio-brand-title">AccountTV</p>
+              <p className="wa-studio-brand-subtitle">admin panel</p>
+            </div>
+          </div>
+
+          <div className="wa-studio-profile">
+            <span className="wa-studio-avatar" aria-hidden="true">
+              {(welcomeEmail.trim().charAt(0) || 'A').toUpperCase()}
+            </span>
+            <div className="wa-studio-profile-main">
+              <p className="wa-studio-profile-email">{welcomeEmail || 'administrator'}</p>
+              <div className="wa-studio-profile-role-row">
+                <p className="wa-studio-profile-role">
+                  Manager
+                  <span className="wa-studio-online-dot" aria-hidden="true" />
+                </p>
+                <button type="button" className="wa-studio-logout-btn" onClick={logout}>
+                  Iesire
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <nav className="wa-studio-menu" aria-label="Studio navigation">
+            <button
+              type="button"
+              className={studioSection === 'forms' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
+              onClick={() => {
+                setStudioSection('forms');
+                openAddMenuItem(addMenuItem);
+              }}
+            >
+              Adauga
+            </button>
+            <button
+              type="button"
+              className={studioSection === 'playlists' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
+              onClick={() => {
+                setStudioSection('playlists');
+                setFocusTopic('sources');
+                if (token) {
+                  void loadPlaylistWorkspace(token);
+                }
+              }}
+            >
+              Playlists
+            </button>
+            <button
+              type="button"
+              className={studioSection === 'constructor' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
+              onClick={() => {
+                setStudioSection('constructor');
+                setFocusTopic('sources');
+                if (token) {
+                  void loadPlaylistWorkspace(token);
+                }
+              }}
+            >
+              Constructor
+            </button>
+            <button
+              type="button"
+              className={studioSection === 'devices' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
+              onClick={() => {
+                setStudioSection('devices');
+                setFocusTopic('pairing');
+                if (token) {
+                  void Promise.all([loadDevices(token), loadClients(token, selectedClientId), loadPlaylistWorkspace(token)]);
+                }
+              }}
+            >
+              Devices
+            </button>
+            <button
+              type="button"
+              className={studioSection === 'account' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
+              onClick={() => {
+                setStudioSection('account');
+                setFocusTopic('clients');
+                if (token) {
+                  void loadClients(token, selectedClientId);
+                }
+              }}
+            >
+              Abonati Finali
+            </button>
+            <button
+              type="button"
+              className={studioSection === 'logs' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
+              onClick={() => {
+                setStudioSection('logs');
+                setFocusTopic('history');
+                if (token) {
+                  void loadAuditLogs(token, {
+                    section: auditSection,
+                    outcome: auditSection === 'internal' ? 'error' : auditOutcome
+                  });
+                }
+              }}
+            >
+              Loguri
+            </button>
+          </nav>
+        </aside>
+
+        <div className="wa-studio-main">
+        <header className="wa-header wa-header--studio">
           <div>
             <h1>AccountTV Админ</h1>
-            <p className="wa-subtitle">Панель управления администраторами и системным доступом.</p>
+            <p className="wa-subtitle">
+              {studioSection === 'forms'
+                ? 'Toate formularele de adaugare intr-un singur loc.'
+                : studioSection === 'playlists'
+                ? 'Vizualizare separata pentru playlisturi de baza si modificate.'
+                : studioSection === 'constructor'
+                ? 'Construieste un playlist nou din canalele selectate din sursele de baza.'
+                : studioSection === 'devices'
+                  ? 'Привязка устройств и назначение плейлистов.'
+                  : studioSection === 'account'
+                    ? 'Учетные записи клиентов и лимиты устройств.'
+                    : studioSection === 'logs'
+                      ? 'Журнал действий администраторов и технических событий.'
+                    : 'Панель управления администраторами и системным доступом.'}
+            </p>
           </div>
           <div className="wa-header-right">
             <p className="wa-clock">{clockLabel}</p>
-            <p className={token ? 'wa-session wa-session--active' : 'wa-session wa-session--idle'}>
-              {token ? 'Сессия активна' : 'Нет сессии'}
-            </p>
-            <div className="wa-header-actions">
-              <button type="button" className="wa-btn" onClick={() => setDashboardOpen(false)}>
-                На главную
-              </button>
-              <button type="button" className="wa-btn wa-btn--ghost" onClick={logout}>
-                Выйти
-              </button>
-            </div>
           </div>
         </header>
 
-        <div className="wa-main">
+        <div className="wa-main wa-main--studio">
           <section className="wa-left">
+            <div style={{ display: 'none' }}>
             <h2 className="wa-section-title">Администраторы</h2>
 
             <section
@@ -3908,187 +4275,1028 @@ export const App: React.FC = () => {
               </div>
             </section>
 
-            <label
-              className="wa-row"
-              onFocus={() => setFocusTopic('admins')}
-              onMouseEnter={() => setFocusTopic('admins')}
-            >
-              <span className="wa-label">Эл. почта администратора</span>
-              <div className="wa-field-control">
-                <input
-                  className={newAdminEmailError ? 'wa-input is-error' : 'wa-input'}
-                  value={newAdminEmail}
-                  onChange={(event) => handleNewAdminEmailChange(event.target.value)}
-                  placeholder="admin2@example.com"
-                  aria-invalid={Boolean(newAdminEmailError)}
-                  aria-describedby={newAdminEmailError ? 'wa-admin-email-error' : undefined}
-                />
-                {newAdminEmailError ? (
-                  <p id="wa-admin-email-error" className="wa-field-error">
-                    {newAdminEmailError}
-                  </p>
-                ) : null}
-              </div>
-            </label>
+            <section className="wa-admin-block">
+              <p className="wa-admin-block-title">Создание администратора</p>
 
-            <label
-              className="wa-row"
-              onFocus={() => setFocusTopic('admins')}
-              onMouseEnter={() => setFocusTopic('admins')}
-            >
-              <span className="wa-label">Пароль admin</span>
-              <div className="wa-field-control">
-                <input
-                  className={newAdminPasswordError ? 'wa-input is-error' : 'wa-input'}
-                  type="password"
-                  value={newAdminPassword}
-                  onChange={(event) => handleNewAdminPasswordChange(event.target.value)}
-                  placeholder="minimum 8 characters"
-                  aria-invalid={Boolean(newAdminPasswordError)}
-                  aria-describedby={newAdminPasswordError ? 'wa-admin-password-error' : undefined}
-                />
-                {newAdminPasswordError ? (
-                  <p id="wa-admin-password-error" className="wa-field-error">
-                    {newAdminPasswordError}
-                  </p>
-                ) : null}
-              </div>
-            </label>
+              <label
+                className="wa-row"
+                onFocus={() => setFocusTopic('admins')}
+                onMouseEnter={() => setFocusTopic('admins')}
+              >
+                <span className="wa-label">Эл. почта администратора</span>
+                <div className="wa-field-control">
+                  <input
+                    className={newAdminEmailError ? 'wa-input is-error' : 'wa-input'}
+                    value={newAdminEmail}
+                    onChange={(event) => handleNewAdminEmailChange(event.target.value)}
+                    placeholder="admin2@example.com"
+                    aria-invalid={Boolean(newAdminEmailError)}
+                    aria-describedby={newAdminEmailError ? 'wa-admin-email-error' : undefined}
+                  />
+                  {newAdminEmailError ? (
+                    <p id="wa-admin-email-error" className="wa-field-error">
+                      {newAdminEmailError}
+                    </p>
+                  ) : null}
+                </div>
+              </label>
 
-            <label
-              className="wa-row"
-              onFocus={() => setFocusTopic('admins')}
-              onMouseEnter={() => setFocusTopic('admins')}
-            >
-              <span className="wa-label">Код подтверждения</span>
-              <div className="wa-field-control">
-                <input
-                  className={newAdminCodeError ? 'wa-input is-error' : 'wa-input'}
-                  value={newAdminCode}
-                  onChange={(event) => handleNewAdminCodeChange(event.target.value)}
-                  placeholder="8 digits from email"
-                  inputMode="numeric"
-                  maxLength={8}
-                  aria-invalid={Boolean(newAdminCodeError)}
-                  aria-describedby={newAdminCodeError ? 'wa-admin-code-error' : undefined}
-                />
-                {newAdminCodeError ? (
-                  <p id="wa-admin-code-error" className="wa-field-error">
-                    {newAdminCodeError}
-                  </p>
-                ) : null}
-              </div>
-            </label>
+              <label
+                className="wa-row"
+                onFocus={() => setFocusTopic('admins')}
+                onMouseEnter={() => setFocusTopic('admins')}
+              >
+                <span className="wa-label">Пароль admin</span>
+                <div className="wa-field-control">
+                  <input
+                    className={newAdminPasswordError ? 'wa-input is-error' : 'wa-input'}
+                    type="password"
+                    value={newAdminPassword}
+                    onChange={(event) => handleNewAdminPasswordChange(event.target.value)}
+                    placeholder="minimum 8 characters"
+                    aria-invalid={Boolean(newAdminPasswordError)}
+                    aria-describedby={newAdminPasswordError ? 'wa-admin-password-error' : undefined}
+                  />
+                  {newAdminPasswordError ? (
+                    <p id="wa-admin-password-error" className="wa-field-error">
+                      {newAdminPasswordError}
+                    </p>
+                  ) : null}
+                </div>
+              </label>
 
-            <div
-              className="wa-row wa-row--actions"
-              onFocus={() => setFocusTopic('admins')}
-              onMouseEnter={() => setFocusTopic('admins')}
-            >
-              <span className="wa-label">Действия администратора</span>
-              <div className="wa-actions">
-                <button
-                  type="button"
-                  className="wa-btn wa-btn--primary"
-                  onClick={() => void requestNewAdminCode()}
-                  disabled={!canRequestNewAdminCode}
-                >
-                  Отправить код
-                </button>
-                <button
-                  type="button"
-                  className="wa-btn"
-                  onClick={() => void resendNewAdminCode()}
-                  disabled={!canResendNewAdminCode}
-                >
-                  {newAdminResendCooldownSec > 0
-                    ? `Повторно отправить (${formatCountdown(newAdminResendCooldownSec)})`
-                    : 'Повторно отправить код'}
-                </button>
-                <button
-                  type="button"
-                  className="wa-btn wa-btn--primary"
-                  onClick={() => void confirmNewAdminCode()}
-                  disabled={!canConfirmNewAdminCode}
-                >
-                  Подтвердить и добавить
-                </button>
-                <button type="button" className="wa-btn" onClick={() => void loadAdmins()} disabled={adminsBusy}>
-                  {adminsBusy ? 'Обновление...' : 'Обновить админов'}
-                </button>
+              <label
+                className="wa-row"
+                onFocus={() => setFocusTopic('admins')}
+                onMouseEnter={() => setFocusTopic('admins')}
+              >
+                <span className="wa-label">Код подтверждения</span>
+                <div className="wa-field-control">
+                  <input
+                    className={newAdminCodeError ? 'wa-input is-error' : 'wa-input'}
+                    value={newAdminCode}
+                    onChange={(event) => handleNewAdminCodeChange(event.target.value)}
+                    placeholder="8 digits from email"
+                    inputMode="numeric"
+                    maxLength={8}
+                    aria-invalid={Boolean(newAdminCodeError)}
+                    aria-describedby={newAdminCodeError ? 'wa-admin-code-error' : undefined}
+                  />
+                  {newAdminCodeError ? (
+                    <p id="wa-admin-code-error" className="wa-field-error">
+                      {newAdminCodeError}
+                    </p>
+                  ) : null}
+                </div>
+              </label>
+
+              <div
+                className="wa-row wa-row--actions"
+                onFocus={() => setFocusTopic('admins')}
+                onMouseEnter={() => setFocusTopic('admins')}
+              >
+                <span className="wa-label">Действия администратора</span>
+                <div className="wa-actions">
+                  <button
+                    type="button"
+                    className="wa-btn wa-btn--primary"
+                    onClick={() => void requestNewAdminCode()}
+                    disabled={!canRequestNewAdminCode}
+                  >
+                    Отправить код
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-btn"
+                    onClick={() => void resendNewAdminCode()}
+                    disabled={!canResendNewAdminCode}
+                  >
+                    {newAdminResendCooldownSec > 0
+                      ? `Повторно отправить (${formatCountdown(newAdminResendCooldownSec)})`
+                      : 'Повторно отправить код'}
+                  </button>
+                  <button
+                    type="button"
+                    className="wa-btn wa-btn--primary"
+                    onClick={() => void confirmNewAdminCode()}
+                    disabled={!canConfirmNewAdminCode}
+                  >
+                    Подтвердить и добавить
+                  </button>
+                  <button type="button" className="wa-btn" onClick={() => void loadAdmins()} disabled={adminsBusy}>
+                    {adminsBusy ? 'Обновление...' : 'Обновить админов'}
+                  </button>
+                </div>
               </div>
+            </section>
+
+            <section className="wa-admin-block">
+              <p className="wa-admin-block-title">Список администраторов</p>
+
+              <div
+                className="wa-row wa-row--actions"
+                onFocus={() => setFocusTopic('admins')}
+                onMouseEnter={() => setFocusTopic('admins')}
+              >
+                <span className="wa-label">Фильтр и сортировка</span>
+                <div className="wa-admin-toolbar">
+                  <div className="wa-admin-toolbar-controls">
+                    <input
+                      className="wa-input"
+                      value={adminSearchQuery}
+                      onChange={(event) => setAdminSearchQuery(event.target.value)}
+                      placeholder="Поиск по email"
+                    />
+                    <select
+                      className="wa-input wa-select"
+                      value={adminSortMode}
+                      onChange={(event) => setAdminSortMode(event.target.value as AdminSortMode)}
+                    >
+                      <option value="newest">Сначала новые</option>
+                      <option value="oldest">Сначала старые</option>
+                      <option value="email">Email A-Z</option>
+                    </select>
+                  </div>
+                  <p className="wa-admin-toolbar-meta">
+                    Показано: {filteredAdmins.length} из {admins.length}. Последний добавлен: {formatDateTime(newestAdminCreatedAt)}
+                  </p>
+                </div>
+              </div>
+
+              <div
+                className="wa-admin-list"
+                onFocus={() => setFocusTopic('admins')}
+                onMouseEnter={() => setFocusTopic('admins')}
+              >
+                {admins.length <= 1 ? (
+                  <p className="wa-admin-meta wa-admin-meta--hint">Удаление отключено: минимум один администратор обязателен.</p>
+                ) : null}
+                {filteredAdmins.length === 0 ? (
+                  <p className="wa-empty">
+                    {adminSearchQuery.trim() ? 'По вашему фильтру администраторы не найдены.' : 'Администраторы отсутствуют.'}
+                  </p>
+                ) : (
+                  filteredAdmins.map((admin) => {
+                    const isCurrentAdmin = currentAdminEmail.length > 0 && admin.email.toLowerCase() === currentAdminEmail;
+                    return (
+                      <article key={admin.id} className="wa-admin-item">
+                        <div className="wa-admin-item-head">
+                          <p className="wa-admin-email">{admin.email}</p>
+                          {isCurrentAdmin ? <span className="wa-pill wa-pill--admin">Текущий вход</span> : null}
+                        </div>
+                        <p className="wa-admin-meta">Создан: {formatDateTime(admin.createdAt)}</p>
+                        <div className="wa-actions">
+                          <button type="button" className="wa-btn" onClick={() => void copyAdminEmail(admin.email)}>
+                            {copiedAdminEmail === admin.email ? 'Скопировано' : 'Копировать email'}
+                          </button>
+                          <button
+                            type="button"
+                            className="wa-btn wa-btn--ghost"
+                            onClick={() => void deleteAdmin(admin)}
+                            disabled={adminsBusy || isCurrentAdmin || admins.length <= 1}
+                          >
+                            Удалить админа
+                          </button>
+                        </div>
+                      </article>
+                    );
+                  })
+                )}
+              </div>
+            </section>
             </div>
 
-            <div
-              className="wa-row wa-row--actions"
-              onFocus={() => setFocusTopic('admins')}
-              onMouseEnter={() => setFocusTopic('admins')}
-            >
-              <span className="wa-label">Список админов</span>
-              <div className="wa-admin-toolbar">
-                <div className="wa-admin-toolbar-controls">
+            <section className="wa-admin-block" style={studioSection === 'forms' ? undefined : { display: 'none' }}>
+              <h2 className="wa-section-title">Formulare De Adaugare</h2>
+              <div className="wa-add-top-menu" role="tablist" aria-label="Tip formular">
+                <button
+                  type="button"
+                  className={addMenuItem === 'playlist' ? 'wa-add-top-menu-item is-active' : 'wa-add-top-menu-item'}
+                  onClick={() => openAddMenuItem('playlist')}
+                >
+                  Playlist
+                </button>
+                <button
+                  type="button"
+                  className={addMenuItem === 'device' ? 'wa-add-top-menu-item is-active' : 'wa-add-top-menu-item'}
+                  onClick={() => openAddMenuItem('device')}
+                >
+                  Device
+                </button>
+                <button
+                  type="button"
+                  className={addMenuItem === 'subscriber' ? 'wa-add-top-menu-item is-active' : 'wa-add-top-menu-item'}
+                  onClick={() => openAddMenuItem('subscriber')}
+                >
+                  Abonat
+                </button>
+              </div>
+
+              <section className="wa-base-playlists-panel" style={addMenuItem === 'playlist' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">Adauga Playlist De Baza</h3>
+                <p className="wa-add-playlist-focus-text">
+                  Prim plan: completeaza denumirea si URL-ul playlistului de baza. Managementul avansat ramane in tabul
+                  Playlists.
+                </p>
+                <label className="wa-row">
+                  <span className="wa-label">Nume playlist</span>
                   <input
                     className="wa-input"
-                    value={adminSearchQuery}
-                    onChange={(event) => setAdminSearchQuery(event.target.value)}
-                    placeholder="Поиск по email"
+                    value={playlistSourceName}
+                    onChange={(event) => setPlaylistSourceName(event.target.value)}
+                    placeholder="Starter Package"
                   />
-                  <select
-                    className="wa-input wa-select"
-                    value={adminSortMode}
-                    onChange={(event) => setAdminSortMode(event.target.value as AdminSortMode)}
-                  >
-                    <option value="newest">Сначала новые</option>
-                    <option value="oldest">Сначала старые</option>
-                    <option value="email">Email A-Z</option>
-                  </select>
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">URL playlist (M3U/M3U8)</span>
+                  <input
+                    className="wa-input"
+                    value={playlistUrl}
+                    onChange={(event) => setPlaylistUrl(event.target.value)}
+                    placeholder="https://example.com/playlist.m3u8"
+                  />
+                </label>
+                <div className="wa-row wa-row--actions">
+                  <span className="wa-label">Actiuni</span>
+                  <div className="wa-actions">
+                    <button type="button" className="wa-btn wa-btn--primary" onClick={() => void savePlaylist()} disabled={playlistBusy}>
+                      {playlistBusy ? 'Salvare...' : 'Adauga playlist'}
+                    </button>
+                    <button
+                      type="button"
+                      className="wa-btn"
+                      onClick={() => {
+                        setPlaylistSourceName('');
+                        setPlaylistUrl('');
+                      }}
+                      disabled={playlistBusy || (!playlistSourceName.trim() && !playlistUrl.trim())}
+                    >
+                      Curata campurile
+                    </button>
+                    <button type="button" className="wa-btn" onClick={() => void loadPlaylistWorkspace(undefined, true)} disabled={playlistBusy}>
+                      {playlistBusy ? 'Verificare...' : 'Refresh'}
+                    </button>
+                  </div>
                 </div>
-                <p className="wa-admin-toolbar-meta">
-                  Показано: {filteredAdmins.length} из {admins.length}. Последний добавлен: {formatDateTime(newestAdminCreatedAt)}
-                </p>
-              </div>
-            </div>
+              </section>
 
-            <div
-              className="wa-admin-list"
-              onFocus={() => setFocusTopic('admins')}
-              onMouseEnter={() => setFocusTopic('admins')}
-            >
-              {admins.length <= 1 ? (
-                <p className="wa-admin-meta wa-admin-meta--hint">Удаление отключено: минимум один администратор обязателен.</p>
+              <section className="wa-base-playlists-panel" style={addMenuItem === 'device' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">Adauga Device (Pair)</h3>
+                <label className="wa-row">
+                  <span className="wa-label">Abonat</span>
+                  <select
+                    className="wa-input"
+                    value={selectedClientId}
+                    onChange={(event) => setSelectedClientId(event.target.value)}
+                  >
+                    <option value="">Selecteaza abonat</option>
+                    {clients.map((client) => (
+                      <option key={client.id} value={client.id}>
+                        {client.lastName} {client.firstName} ({client.phone})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">Cod Pair</span>
+                  <input
+                    className="wa-input"
+                    value={pairCode}
+                    onChange={(event) => setPairCode(event.target.value.toUpperCase())}
+                    placeholder="A1B2C3"
+                    maxLength={8}
+                  />
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">Mod playlist</span>
+                  <select
+                    className="wa-input"
+                    value={pairPlaylistMode}
+                    onChange={(event) => setPairPlaylistMode(event.target.value as DevicePlaylistMode)}
+                  >
+                    <option value="GLOBAL">GLOBAL</option>
+                    <option value="SOURCE">SOURCE</option>
+                    <option value="CUSTOM">CUSTOM</option>
+                  </select>
+                </label>
+                {pairPlaylistMode === 'CUSTOM' ? (
+                  <label className="wa-row">
+                    <span className="wa-label">Custom playlist</span>
+                    <select
+                      className="wa-input"
+                      value={pairCustomPlaylistId}
+                      onChange={(event) => setPairCustomPlaylistId(event.target.value)}
+                    >
+                      <option value="">Selecteaza custom playlist</option>
+                      {customPlaylists.map((playlist) => (
+                        <option key={playlist.id} value={playlist.id}>
+                          {playlist.name} ({playlist.channelsCount} canale)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
+                <div className="wa-row wa-row--actions">
+                  <span className="wa-label">Actiuni</span>
+                  <div className="wa-actions">
+                    <button type="button" className="wa-btn wa-btn--primary" onClick={() => void confirmPair()}>
+                      Confirma Pair
+                    </button>
+                    <button type="button" className="wa-btn" onClick={() => void loadDevices()} disabled={devicesBusy}>
+                      {devicesBusy ? 'Actualizare...' : 'Refresh devices'}
+                    </button>
+                  </div>
+                </div>
+              </section>
+
+              <section className="wa-base-playlists-panel" style={addMenuItem === 'subscriber' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">Adauga Abonat Final</h3>
+                <label className="wa-row">
+                  <span className="wa-label">Nume</span>
+                  <input
+                    className="wa-input"
+                    value={clientFirstName}
+                    onChange={(event) => setClientFirstName(event.target.value)}
+                    placeholder="John"
+                  />
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">Prenume</span>
+                  <input
+                    className="wa-input"
+                    value={clientLastName}
+                    onChange={(event) => setClientLastName(event.target.value)}
+                    placeholder="Smith"
+                  />
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">Telefon</span>
+                  <input
+                    className="wa-input"
+                    value={clientPhone}
+                    onChange={(event) => setClientPhone(event.target.value)}
+                    placeholder="+373 60 123 456"
+                  />
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">Adresa</span>
+                  <input
+                    className="wa-input"
+                    value={clientAddress}
+                    onChange={(event) => setClientAddress(event.target.value)}
+                    placeholder="City, street, house"
+                  />
+                </label>
+                <label className="wa-row">
+                  <span className="wa-label">Nr. dispozitive</span>
+                  <input
+                    className="wa-input"
+                    value={clientDevicesAllowed}
+                    onChange={(event) => setClientDevicesAllowed(event.target.value)}
+                    placeholder="1"
+                  />
+                </label>
+                <div className="wa-row wa-row--actions">
+                  <span className="wa-label">Actiuni</span>
+                  <div className="wa-actions">
+                    <button type="button" className="wa-btn wa-btn--primary" onClick={() => void createClient()}>
+                      Adauga abonat
+                    </button>
+                    <button type="button" className="wa-btn" onClick={() => void loadClients()} disabled={clientBusy}>
+                      {clientBusy ? 'Actualizare...' : 'Refresh abonati'}
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </section>
+
+            <section className="wa-base-playlists" aria-label="Плейлисты" style={studioSection === 'playlists' ? undefined : { display: 'none' }}>
+              <div className="wa-base-playlists-head">
+                <h2 className="wa-base-playlists-title">Playlists</h2>
+                <button type="button" className="wa-btn" onClick={() => void loadPlaylistWorkspace(undefined, true)} disabled={playlistBusy}>
+                  {playlistBusy ? 'Проверка...' : 'Обновить данные'}
+                </button>
+              </div>
+
+              <div className="wa-base-playlists-status">
+                <article className="wa-base-playlists-stat-card">
+                  <p className="wa-base-playlists-stat-label">Базовых источников</p>
+                  <p className="wa-base-playlists-stat-value">{playlistStatus?.basePlaylistsCount ?? 0}</p>
+                </article>
+                <article className="wa-base-playlists-stat-card">
+                  <p className="wa-base-playlists-stat-label">Каналов (объединено)</p>
+                  <p className="wa-base-playlists-stat-value">{playlistStatus?.channelsCount ?? 0}</p>
+                </article>
+                <article className="wa-base-playlists-stat-card">
+                  <p className="wa-base-playlists-stat-label">Последнее обновление</p>
+                  <p className="wa-base-playlists-stat-value">{formatDateTime(playlistStatus?.cacheUpdatedAt ?? null)}</p>
+                </article>
+              </div>
+
+              {playlistStatus?.sourceLastError ? (
+                <p className="wa-base-playlists-error">Ошибка источника: {playlistStatus.sourceLastError}</p>
               ) : null}
-              {filteredAdmins.length === 0 ? (
-                <p className="wa-empty">
-                  {adminSearchQuery.trim() ? 'По вашему фильтру администраторы не найдены.' : 'Администраторы отсутствуют.'}
-                </p>
-              ) : (
-                filteredAdmins.map((admin) => {
-                  const isCurrentAdmin = currentAdminEmail.length > 0 && admin.email.toLowerCase() === currentAdminEmail;
-                  return (
-                    <article key={admin.id} className="wa-admin-item">
-                      <div className="wa-admin-item-head">
-                        <p className="wa-admin-email">{admin.email}</p>
-                        {isCurrentAdmin ? <span className="wa-pill wa-pill--admin">Текущий вход</span> : null}
+
+              <div className="wa-playlists-submenu" role="tablist" aria-label="Submeniu playlists">
+                <button
+                  type="button"
+                  className={playlistsSubMenuItem === 'base' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setPlaylistsSubMenuItem('base')}
+                >
+                  Playlisturi de baza
+                </button>
+                <button
+                  type="button"
+                  className={playlistsSubMenuItem === 'modified' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setPlaylistsSubMenuItem('modified')}
+                >
+                  Playlisturi modificate
+                </button>
+              </div>
+
+              <section className="wa-base-playlists-panel" style={playlistsSubMenuItem === 'base' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">Playlisturi de baza</h3>
+                {basePlaylists.length === 0 ? (
+                  <p className="wa-empty">Nu exista playlisturi de baza.</p>
+                ) : (
+                  <div className="wa-base-playlists-custom-list">
+                    {basePlaylists.map((playlist) => (
+                      <article key={playlist.id} className="wa-base-playlists-custom-item">
+                        <p className="wa-base-playlists-custom-item-name">{playlist.name}</p>
+                        <p className="wa-base-playlists-custom-item-meta">{playlist.url}</p>
+                        <p className="wa-base-playlists-custom-item-meta">
+                          canale: {playlist.channelsCount} | actualizat: {formatDateTime(playlist.cacheUpdatedAt)}
+                        </p>
+                        <div className="wa-actions">
+                          <button type="button" className="wa-btn" onClick={() => void refreshBasePlaylist(playlist.id, playlist.name)} disabled={playlistBusy}>
+                            Refresh
+                          </button>
+                          <button type="button" className="wa-btn" onClick={() => void renameBasePlaylist(playlist)} disabled={playlistBusy}>
+                            Redenumeste
+                          </button>
+                          <button type="button" className="wa-btn" onClick={() => void updateBasePlaylistUrl(playlist)} disabled={playlistBusy}>
+                            Schimba URL
+                          </button>
+                          <button type="button" className="wa-btn wa-btn--ghost" onClick={() => void deleteBasePlaylist(playlist)} disabled={playlistBusy}>
+                            Sterge
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              <section className="wa-base-playlists-panel" style={playlistsSubMenuItem === 'modified' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">Playlisturi modificate (custom)</h3>
+                {customPlaylists.length === 0 ? (
+                  <p className="wa-empty">Nu exista playlisturi modificate.</p>
+                ) : (
+                  <div className="wa-base-playlists-custom-list">
+                    {customPlaylists.map((playlist) => (
+                      <button
+                        key={playlist.id}
+                        type="button"
+                        className={playlist.id === selectedCustomPlaylistId ? 'wa-base-playlists-custom-item is-active' : 'wa-base-playlists-custom-item'}
+                        onClick={() => void loadCustomPlaylistById(playlist.id)}
+                        disabled={playlistBusy}
+                      >
+                        <p className="wa-base-playlists-custom-item-name">{playlist.name}</p>
+                        <p className="wa-base-playlists-custom-item-meta">
+                          canale: {playlist.channelsCount} | {playlist.isActive ? 'activ' : 'inactiv'}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </section>
+            </section>
+
+            <section className="wa-base-playlists" aria-label="Constructor playlist" style={studioSection === 'constructor' ? undefined : { display: 'none' }}>
+              <div className="wa-base-playlists-head">
+                <h2 className="wa-base-playlists-title">Constructor Playlist</h2>
+                <button type="button" className="wa-btn" onClick={() => void loadPlaylistWorkspace(undefined, true)} disabled={playlistBusy}>
+                  {playlistBusy ? 'Verificare...' : 'Refresh date'}
+                </button>
+              </div>
+              <p className="wa-base-playlists-text">
+                Creeaza de la zero playlistul dorit: selecteaza sau creeaza un custom playlist, apoi adauga canale din playlisturile de baza.
+              </p>
+
+              {token ? (
+                <div className="wa-base-playlists-manager">
+                  <section className="wa-base-playlists-panel">
+                    <h3 className="wa-base-playlists-panel-title">Playlisturi modificate</h3>
+
+                    <label className="wa-row wa-constructor-create-card">
+                      <span className="wa-label">Nume playlist nou</span>
+                      <div className="wa-field-control">
+                        <input
+                          className="wa-input"
+                          value={newCustomPlaylistName}
+                          onChange={(event) => setNewCustomPlaylistName(event.target.value)}
+                          placeholder="Ex: Sport + Cinema"
+                        />
+                        <div className="wa-actions wa-constructor-create-actions">
+                          <button type="button" className="wa-btn wa-btn--primary" onClick={() => void createCustomPlaylist()} disabled={playlistBusy}>
+                            Creeaza
+                          </button>
+                          <button type="button" className="wa-btn" onClick={() => void loadPlaylistWorkspace(undefined, true)} disabled={playlistBusy}>
+                            Refresh
+                          </button>
+                        </div>
                       </div>
-                      <p className="wa-admin-meta">Создан: {formatDateTime(admin.createdAt)}</p>
+                    </label>
+
+                    {customPlaylists.length === 0 ? (
+                      <p className="wa-empty">Nu exista playlisturi modificate.</p>
+                    ) : (
+                      <div className="wa-base-playlists-custom-list">
+                        {customPlaylists.map((playlist) => (
+                          <button
+                            key={playlist.id}
+                            type="button"
+                            className={
+                              playlist.id === selectedCustomPlaylistId
+                                ? 'wa-base-playlists-custom-item is-active'
+                                : 'wa-base-playlists-custom-item'
+                            }
+                            onClick={() => void loadCustomPlaylistById(playlist.id)}
+                            disabled={playlistBusy}
+                          >
+                            <p className="wa-base-playlists-custom-item-name">{playlist.name}</p>
+                            <p className="wa-base-playlists-custom-item-meta">
+                              canale: {playlist.channelsCount} | {playlist.isActive ? 'activ' : 'inactiv'}
+                            </p>
+                            <p className="wa-base-playlists-custom-item-meta">
+                              surse: {playlist.sourcePlaylistNames.length > 0 ? playlist.sourcePlaylistNames.join(', ') : '-'}
+                            </p>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {selectedCustomPlaylist ? (
+                      <div className="wa-base-playlists-editor">
+                        <label className="wa-row">
+                          <span className="wa-label">Denumire playlist</span>
+                          <div className="wa-field-control">
+                            <input
+                              className="wa-input"
+                              value={selectedCustomPlaylistName}
+                              onChange={(event) => setSelectedCustomPlaylistName(event.target.value)}
+                              placeholder="Nume playlist"
+                            />
+                            <div className="wa-actions">
+                              <button type="button" className="wa-btn" onClick={() => void renameSelectedCustomPlaylist()} disabled={playlistBusy}>
+                                Redenumeste
+                              </button>
+                              <button type="button" className="wa-btn wa-btn--ghost" onClick={() => void deleteSelectedCustomPlaylist()} disabled={playlistBusy}>
+                                Sterge
+                              </button>
+                              <button type="button" className="wa-btn wa-btn--primary" onClick={() => void saveCustomPlaylistDraft()} disabled={playlistBusy}>
+                                Salveaza canale
+                              </button>
+                              <button
+                                type="button"
+                                className="wa-btn"
+                                onClick={() => setCustomDraftChannelIds(customSavedChannelIds)}
+                                disabled={playlistBusy || !hasCustomDraftChanges}
+                              >
+                                Renunta modificari
+                              </button>
+                              <button type="button" className="wa-btn" onClick={() => void activateSelectedCustomPlaylist()} disabled={playlistBusy}>
+                                Activeaza
+                              </button>
+                            </div>
+                          </div>
+                        </label>
+
+                        <p className="wa-base-playlists-meta">
+                          Canale in draft: {customDraftChannels.length}
+                          {hasCustomDraftChanges ? ' (ai modificari nesalvate)' : ''}
+                        </p>
+                        <p className="wa-base-playlists-meta">
+                          Surse curente: {selectedCustomPlaylist.sourcePlaylistNames.length > 0 ? selectedCustomPlaylist.sourcePlaylistNames.join(', ') : '-'}
+                        </p>
+
+                        {customDraftChannels.length === 0 ? (
+                          <p className="wa-empty">Acest playlist nu are inca canale.</p>
+                        ) : (
+                          <div className="wa-base-playlists-draft-list">
+                            {customDraftChannels.map((channel, index) => (
+                              <div key={channel.id} className="wa-base-playlists-draft-item">
+                                <div className="wa-base-playlists-draft-main">
+                                  <p className="wa-base-playlists-draft-name">{index + 1}. {channel.name}</p>
+                                  <p className="wa-base-playlists-draft-meta">
+                                    {channel.group || 'fara grup'} | {channel.tvgId || '-'}
+                                  </p>
+                                </div>
+                                <div className="wa-base-playlists-draft-actions">
+                                  <button type="button" className="wa-btn" onClick={() => moveDraftChannel(index, -1)} disabled={playlistBusy || index === 0}>
+                                    Sus
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="wa-btn"
+                                    onClick={() => moveDraftChannel(index, 1)}
+                                    disabled={playlistBusy || index === customDraftChannels.length - 1}
+                                  >
+                                    Jos
+                                  </button>
+                                  <button type="button" className="wa-btn wa-btn--ghost" onClick={() => removeDraftChannel(channel.id)} disabled={playlistBusy}>
+                                    Scoate
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ) : null}
+                  </section>
+
+                  <section className="wa-base-playlists-panel">
+                    <h3 className="wa-base-playlists-panel-title">Canale din playlisturile de baza</h3>
+
+                    <label className="wa-row">
+                      <span className="wa-label">Cauta canal</span>
+                      <input
+                        className="wa-input"
+                        value={playlistSourceSearch}
+                        onChange={(event) => setPlaylistSourceSearch(event.target.value)}
+                        placeholder="nume canal, grup, tvg-id"
+                      />
+                    </label>
+
+                    <div className="wa-row wa-row--actions">
+                      <span className="wa-label">Selectie</span>
                       <div className="wa-actions">
-                        <button type="button" className="wa-btn" onClick={() => void copyAdminEmail(admin.email)}>
-                          {copiedAdminEmail === admin.email ? 'Скопировано' : 'Копировать email'}
+                        <button type="button" className="wa-btn" onClick={selectAllFilteredSourceChannels} disabled={playlistBusy || filteredSourceChannels.length === 0}>
+                          Selecteaza tot
+                        </button>
+                        <button type="button" className="wa-btn" onClick={clearSourceChannelSelection} disabled={playlistBusy || selectedSourceChannelIds.length === 0}>
+                          Curata selectia
                         </button>
                         <button
                           type="button"
-                          className="wa-btn wa-btn--ghost"
-                          onClick={() => void deleteAdmin(admin)}
-                          disabled={adminsBusy || isCurrentAdmin || admins.length <= 1}
+                          className="wa-btn wa-btn--primary"
+                          onClick={addSelectedChannelsToCustomDraft}
+                          disabled={playlistBusy || selectedSourceChannelIds.length === 0 || !selectedCustomPlaylistId}
                         >
-                          Удалить админа
+                          Adauga in playlistul selectat
                         </button>
                       </div>
-                    </article>
-                  );
-                })
+                    </div>
+
+                    <p className="wa-base-playlists-meta">
+                      Canale gasite: {filteredSourceChannels.length}. Selectate: {selectedSourceChannelIds.length}.
+                    </p>
+
+                    {filteredSourceChannels.length === 0 ? (
+                      <p className="wa-empty">Nu au fost gasite canale. Verifica sursele de baza si da refresh.</p>
+                    ) : (
+                      <div className="wa-base-playlists-source-list">
+                        {filteredSourceChannels.map((channel) => {
+                          const isSelected = selectedSourceChannelIds.includes(channel.id);
+                          return (
+                            <label key={channel.id} className={isSelected ? 'wa-base-playlists-source-item is-selected' : 'wa-base-playlists-source-item'}>
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleSourceChannelSelection(channel.id)}
+                                disabled={playlistBusy}
+                              />
+                              <div className="wa-base-playlists-source-item-main">
+                                <p className="wa-base-playlists-source-item-name">{channel.position}. {channel.name}</p>
+                                <p className="wa-base-playlists-source-item-meta">
+                                  {channel.group || 'fara grup'} | {channel.tvgId || '-'} | {channel.sourcePlaylistNames.join(', ')}
+                                </p>
+                              </div>
+                              {channel.logo ? (
+                                <img
+                                  src={channel.logo}
+                                  alt={channel.name}
+                                  className="wa-base-playlists-source-item-logo"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <span className="wa-base-playlists-source-item-fallback">TV</span>
+                              )}
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                </div>
+              ) : (
+                <div className="wa-base-playlists-empty">
+                  <p className="wa-base-playlists-empty-text">Pentru constructor trebuie sa te loghezi ca administrator.</p>
+                  <button type="button" className="wa-base-auth-btn wa-base-auth-btn--primary" onClick={openLandingAuth}>
+                    Login admin
+                  </button>
+                </div>
               )}
-            </div>
+            </section>
+
+            <section className="wa-base-devices" aria-label="Устройства" style={studioSection === 'devices' ? undefined : { display: 'none' }}>
+              <h2 className="wa-base-devices-title">Devices</h2>
+              <p className="wa-base-devices-text">
+                Dispozitive conectate si playlisturile atribuite.
+              </p>
+
+              <div className="wa-base-devices-list">
+                <p className="wa-base-devices-list-title">Clienti si device-uri</p>
+                {deviceGroupsByClient.length === 0 ? (
+                  <p className="wa-empty">Nu exista clienti sau device-uri.</p>
+                ) : (
+                  <div className="wa-base-devices-client-list">
+                    {deviceGroupsByClient.map((group) => {
+                      const isOpen = expandedDeviceClientId === group.id;
+                      return (
+                        <article key={group.id} className={isOpen ? 'wa-base-devices-client is-open' : 'wa-base-devices-client'}>
+                          <button
+                            type="button"
+                            className="wa-base-devices-client-toggle"
+                            onClick={() =>
+                              setExpandedDeviceClientId((current) => (current === group.id ? '' : group.id))
+                            }
+                            aria-expanded={isOpen}
+                          >
+                            <span className="wa-base-devices-client-name">{group.name}</span>
+                            <span className="wa-base-devices-client-meta">
+                              {group.meta ? `${group.meta} | ` : ''}
+                              {group.devices.length} device-uri
+                            </span>
+                          </button>
+
+                          {isOpen ? (
+                            group.devices.length === 0 ? (
+                              <p className="wa-empty">Clientul nu are device-uri conectate.</p>
+                            ) : (
+                              <div className="wa-base-devices-list-grid">
+                                {group.devices.map((device) => {
+                                  const draft = getDevicePlaylistDraft(device);
+                                  const hasDraftChanges =
+                                    draft.mode !== device.playlistMode ||
+                                    (draft.mode === 'CUSTOM'
+                                      ? draft.customPlaylistId !== (device.customPlaylistId ?? '')
+                                      : false);
+
+                                  return (
+                                    <article key={device.id} className="wa-base-devices-item">
+                                      <p className="wa-base-devices-item-name">{device.name}</p>
+                                      <p className="wa-base-devices-item-meta">
+                                        {device.platform} | {device.clientName || 'fara abonat'}
+                                      </p>
+                                      <p className="wa-base-devices-item-meta">
+                                        Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
+                                      </p>
+                                      <p className="wa-base-devices-item-meta">
+                                        Playlist actual: {device.playlistMode}
+                                        {device.customPlaylistName ? ` (${device.customPlaylistName})` : ''}
+                                      </p>
+
+                                      <label className="wa-row">
+                                        <span className="wa-label">Playlist dorit</span>
+                                        <select
+                                          className="wa-input"
+                                          value={getDevicePlaylistSelectionValue(device)}
+                                          onChange={(event) => setDevicePlaylistSelectionValue(device.id, event.target.value)}
+                                        >
+                                          <option value="GLOBAL">GLOBAL (implicit)</option>
+                                          <option value="SOURCE">SOURCE (din sursa)</option>
+                                          {customPlaylists.map((playlist) => (
+                                            <option key={playlist.id} value={`CUSTOM:${playlist.id}`}>
+                                              {playlist.name} ({playlist.channelsCount} canale)
+                                            </option>
+                                          ))}
+                                        </select>
+                                      </label>
+
+                                      <div className="wa-actions">
+                                        <button
+                                          type="button"
+                                          className="wa-btn wa-btn--primary"
+                                          onClick={() => void saveDevicePlaylistAssignment(device)}
+                                          disabled={devicesBusy || !hasDraftChanges}
+                                        >
+                                          Сохранить
+                                        </button>
+                                      </div>
+                                    </article>
+                                  );
+                                })}
+                              </div>
+                            )
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="wa-base-subscribers" aria-label="Account" style={studioSection === 'account' ? undefined : { display: 'none' }}>
+              <div className="wa-base-subscribers-head">
+                <h2 className="wa-base-subscribers-title">Abonati Finali</h2>
+              </div>
+              <p className="wa-base-subscribers-text">Abonatii finali sunt separati aici. Adaugarea se face din tabul Adauga.</p>
+              <div className="wa-actions">
+                <button type="button" className="wa-btn" onClick={() => void loadClients()} disabled={clientBusy}>
+                  {clientBusy ? 'Обновление...' : 'Обновить список'}
+                </button>
+              </div>
+
+              <div className="wa-base-subscribers-list">
+                <p className="wa-base-subscribers-list-title">Список абонентов (final)</p>
+                {clients.length === 0 ? (
+                  <p className="wa-empty">Список абонентов пока пуст.</p>
+                ) : (
+                  <div className="wa-base-devices-client-list">
+                    {clients.map((client) => {
+                      const isOpen = expandedFinalClientId === client.id;
+                      const draftDevices = finalClientDeviceDrafts[client.id] ?? String(client.devicesAllowed);
+                      const parsedDraftDevices = Number.parseInt(draftDevices.trim(), 10);
+                      const isDraftValid = Number.isFinite(parsedDraftDevices) && parsedDraftDevices >= 1;
+                      const hasDraftChanges = isDraftValid
+                        ? parsedDraftDevices !== client.devicesAllowed
+                        : draftDevices.trim() !== String(client.devicesAllowed);
+
+                      return (
+                        <article key={client.id} className={isOpen ? 'wa-base-devices-client is-open' : 'wa-base-devices-client'}>
+                          <button
+                            type="button"
+                            className="wa-base-devices-client-toggle"
+                            onClick={() => toggleFinalClientCard(client)}
+                            aria-expanded={isOpen}
+                          >
+                            <span className="wa-base-devices-client-name">
+                              {client.lastName} {client.firstName}
+                            </span>
+                            <span className="wa-base-devices-client-meta">
+                              {client.phone} | device-uri: {client.pairedDevices}/{client.devicesAllowed}
+                            </span>
+                          </button>
+
+                          {isOpen ? (
+                            <div className="wa-base-devices-list-grid">
+                              <article className="wa-base-devices-item">
+                                <p className="wa-base-devices-item-name">Setari abonat</p>
+                                <p className="wa-base-devices-item-meta">{client.address || 'Adresa lipsa'}</p>
+
+                                <label className="wa-row">
+                                  <span className="wa-label">Cantitate device-uri</span>
+                                  <input
+                                    className="wa-input"
+                                    value={draftDevices}
+                                    onChange={(event) => setFinalClientDevicesDraft(client.id, event.target.value)}
+                                    inputMode="numeric"
+                                    placeholder="1"
+                                  />
+                                </label>
+
+                                <div className="wa-actions">
+                                  <button
+                                    type="button"
+                                    className="wa-btn wa-btn--primary"
+                                    onClick={() => void saveFinalClientDevicesAllowed(client)}
+                                    disabled={clientBusy || !isDraftValid || !hasDraftChanges}
+                                  >
+                                    Salveaza
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="wa-btn"
+                                    onClick={() => resetFinalClientDevicesDraft(client)}
+                                    disabled={clientBusy || !hasDraftChanges}
+                                  >
+                                    Reset
+                                  </button>
+                                </div>
+                              </article>
+                            </div>
+                          ) : null}
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </section>
+
+            <section className="wa-base-playlists" aria-label="Audit logs" style={studioSection === 'logs' ? undefined : { display: 'none' }}>
+              <div className="wa-base-playlists-head">
+                <h2 className="wa-base-playlists-title">Loguri</h2>
+                <button
+                  type="button"
+                  className="wa-btn"
+                  onClick={() =>
+                    void loadAuditLogs(undefined, {
+                      section: auditSection,
+                      outcome: auditSection === 'internal' ? 'error' : auditOutcome
+                    })
+                  }
+                  disabled={auditBusy}
+                >
+                  {auditBusy ? 'Обновление...' : 'Обновить лог'}
+                </button>
+              </div>
+              <p className="wa-base-playlists-text">
+                Loguri detaliate pentru fiecare actiune: inregistrare, playlisturi, device-uri si loguri interne.
+              </p>
+
+              <div className="wa-playlists-submenu" role="tablist" aria-label="Categorie loguri">
+                <button
+                  type="button"
+                  className={auditSection === 'registration' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setAuditSection('registration')}
+                  disabled={auditBusy}
+                >
+                  Inregistrare
+                </button>
+                <button
+                  type="button"
+                  className={auditSection === 'playlists' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setAuditSection('playlists')}
+                  disabled={auditBusy}
+                >
+                  Playlists
+                </button>
+                <button
+                  type="button"
+                  className={auditSection === 'devices' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setAuditSection('devices')}
+                  disabled={auditBusy}
+                >
+                  Devices
+                </button>
+                <button
+                  type="button"
+                  className={auditSection === 'internal' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setAuditSection('internal')}
+                  disabled={auditBusy}
+                >
+                  Interne
+                </button>
+              </div>
+
+              {auditSection !== 'internal' ? (
+                <div className="wa-playlists-submenu" role="tablist" aria-label="Rezultat loguri">
+                  <button
+                    type="button"
+                    className={auditOutcome === 'success' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                    onClick={() => setAuditOutcome('success')}
+                    disabled={auditBusy}
+                  >
+                    Succes
+                  </button>
+                  <button
+                    type="button"
+                    className={auditOutcome === 'error' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                    onClick={() => setAuditOutcome('error')}
+                    disabled={auditBusy}
+                  >
+                    Erori
+                  </button>
+                </div>
+              ) : (
+                <p className="wa-base-playlists-meta">Logurile interne afiseaza problemele (erori) din module precum admin/epg/logo/system.</p>
+              )}
+
+              {auditLogs.length === 0 ? (
+                <p className="wa-empty">{auditBusy ? 'Se incarca logurile...' : 'Nu exista loguri disponibile.'}</p>
+              ) : (
+                <div className="wa-base-playlists-custom-list">
+                  {auditLogs.map((row) => (
+                    <article key={row.id} className="wa-base-playlists-custom-item">
+                      <p className="wa-base-playlists-custom-item-name">{row.action}</p>
+                      <p className="wa-base-playlists-meta">Data/Ora: {formatDateTime(row.createdAt)}</p>
+                      <p className="wa-base-playlists-meta">
+                        Actor: {row.userEmail || row.userId || 'system'}
+                      </p>
+                      <p className="wa-base-playlists-meta">
+                        {row.method || '-'} {row.path || '-'} | status: {row.statusCode ?? '-'} |{' '}
+                        {row.success ? 'success' : 'error'}
+                      </p>
+                      {auditSection === 'internal' ? (
+                        <p className="wa-audit-problem">
+                          Problema: {getAuditIssueDescription(row.details, row.action)}
+                        </p>
+                      ) : null}
+                      {row.entityType || row.entityId ? (
+                        <p className="wa-base-playlists-meta">
+                          Entitate: {row.entityType || '-'} {row.entityId ? `(${row.entityId})` : ''}
+                        </p>
+                      ) : null}
+                      <pre className="wa-audit-details">{formatAuditDetails(row.details)}</pre>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           </section>
 
           <aside className="wa-right">
@@ -4113,19 +5321,12 @@ export const App: React.FC = () => {
               <strong className="wa-meta-value">{API_BASE}</strong>
             </div>
 
-            <div className="wa-meta" onMouseEnter={() => setFocusTopic('admins')}>
-              <span className="wa-meta-label">Администраторы</span>
-              <strong className="wa-meta-value">
-                {filteredAdmins.length}
-                {adminSearchQuery.trim() ? ` / ${admins.length}` : ''}
-              </strong>
-            </div>
-
             <div className="wa-meta" onMouseEnter={() => setFocusTopic('session')}>
               <span className="wa-meta-label">JWT токен</span>
               <strong className="wa-meta-value">{tokenStorageLabel}</strong>
             </div>
           </aside>
+        </div>
         </div>
       </div>
     </div>

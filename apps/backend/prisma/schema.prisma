@@ -33,6 +33,7 @@ model User {
   ottChannels     OttChannel[]
   ottPrograms     OttProgram[]
   telemetryEvents TelemetryEvent[]
+  auditLogs       AuditLog[]
 }
 
 model AdminRegistrationRequest {
@@ -276,4 +277,23 @@ model TelemetryEvent {
 
   @@index([deviceId])
   @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  action     String
+  method     String?
+  path       String?
+  entityType String?
+  entityId   String?
+  success    Boolean  @default(true)
+  statusCode Int?
+  details    Json?
+  createdAt  DateTime @default(now())
+  userId     String?
+  userEmail  String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([createdAt])
 }

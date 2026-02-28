@@ -5,7 +5,7 @@
   "type": "commonjs",
   "scripts": {
     "dev": "tsx watch --tsconfig tsconfig.json src/main.ts",
-    "build": "prisma generate && tsc -p tsconfig.build.json",
+    "build": "node scripts/prisma-generate-with-retry.cjs && tsc -p tsconfig.build.json",
     "start": "node dist/main.js",
     "lint": "eslint \"src/**/*.ts\" \"prisma/**/*.ts\"",
     "test": "node -e \"console.log('No automated tests yet for backend')\"",

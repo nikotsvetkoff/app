@@ -32,6 +32,12 @@ interface OttChannelCandidate {
   logo?: string;
 }
 
+interface OttChannelLookupRow {
+  displayName: string;
+  tvgId: string | null;
+  logoUrl: string | null;
+}
+
 interface BasePlaylistWithCacheRow {
   id: string;
   name: string;
@@ -108,6 +114,8 @@ const normalizeChannelNameNoQuality = (raw: string): string =>
     .filter((token) => Boolean(token) && !QUALITY_TOKENS.has(token))
     .join(' ')
     .trim();
+
+const normalizeTvgId = (raw: string | null | undefined): string => (raw ?? '').trim().toLowerCase();
 
 const pushLookupCandidate = (
   lookup: Map<string, OttChannelCandidate[]>,
@@ -1034,16 +1042,17 @@ export class PlaylistService {
       return channels;
     }
 
+    const cachedEnriched = await this.enrichChannelsWithCachedOttChannels(userId, channels);
+    let bestChannels = cachedEnriched.channels;
+    let bestMatchedChannels = cachedEnriched.matchedChannels;
+
     const providers = await this.getCandidateProviders(userId);
     if (!providers.length) {
-      return channels;
+      return bestChannels;
     }
 
-    let bestChannels = channels;
-    let bestMatchedChannels = this.countChannelsWithMetadata(channels);
-
     for (const provider of providers) {
-      const enriched = await this.enrichChannelsWithProvider(userId, provider.id, channels);
+      const enriched = await this.enrichChannelsWithProvider(userId, provider.id, bestChannels);
       if (enriched.matchedChannels <= bestMatchedChannels) {
         continue;
       }
@@ -1079,6 +1088,32 @@ export class PlaylistService {
       }
     });
 
+    return this.applyOttChannelCandidates(channels, ottChannels);
+  }
+
+  private async enrichChannelsWithCachedOttChannels(
+    userId: string,
+    channels: Channel[]
+  ): Promise<{ channels: Channel[]; matchedChannels: number }> {
+    const ottChannels = await this.prisma.ottChannel.findMany({
+      where: {
+        userId,
+        OR: [{ tvgId: { not: null } }, { logoUrl: { not: null } }]
+      },
+      select: {
+        displayName: true,
+        tvgId: true,
+        logoUrl: true
+      }
+    });
+
+    return this.applyOttChannelCandidates(channels, ottChannels);
+  }
+
+  private applyOttChannelCandidates(
+    channels: Channel[],
+    ottChannels: OttChannelLookupRow[]
+  ): { channels: Channel[]; matchedChannels: number } {
     if (!ottChannels.length) {
       return {
         channels,
@@ -1088,6 +1123,7 @@ export class PlaylistService {
 
     const exactLookup = new Map<string, OttChannelCandidate[]>();
     const relaxedLookup = new Map<string, OttChannelCandidate[]>();
+    const tvgLookup = new Map<string, OttChannelCandidate[]>();
     for (const ottChannel of ottChannels) {
       const candidate: OttChannelCandidate = {
         tvgId: ottChannel.tvgId ?? undefined,
@@ -1100,6 +1136,7 @@ export class PlaylistService {
         normalizeChannelNameNoQuality(ottChannel.displayName),
         candidate
       );
+      pushLookupCandidate(tvgLookup, normalizeTvgId(ottChannel.tvgId), candidate);
     }
 
     let hasChanges = false;
@@ -1108,10 +1145,10 @@ export class PlaylistService {
         return channel;
       }
 
-      const exactCandidate = this.pickBestCandidate(
-        exactLookup.get(normalizeChannelName(channel.name))
-      );
+      const tvgCandidate = this.pickBestCandidate(tvgLookup.get(normalizeTvgId(channel.tvgId)));
+      const exactCandidate = this.pickBestCandidate(exactLookup.get(normalizeChannelName(channel.name)));
       const fallbackCandidate =
+        tvgCandidate ??
         exactCandidate ??
         this.pickBestCandidate(relaxedLookup.get(normalizeChannelNameNoQuality(channel.name)));
       if (!fallbackCandidate) {
@@ -1362,9 +1399,27 @@ export class PlaylistService {
       providers.map((provider) => [provider.key.trim().toLowerCase(), provider] as const)
     );
 
-    return this.ottCandidateProviderKeys
+    const preferredProviders = this.ottCandidateProviderKeys
       .map((key) => providersByKey.get(key))
       .filter((provider): provider is { id: string; key: string } => Boolean(provider));
+
+    const preferredKeys = new Set(preferredProviders.map((provider) => provider.key.trim().toLowerCase()));
+    const fallbackProviders = await this.prisma.ottProvider.findMany({
+      where: {
+        userId,
+        key: {
+          notIn: [...preferredKeys]
+        }
+      },
+      orderBy: [{ channelsCount: 'desc' }, { updatedAt: 'desc' }],
+      take: 2,
+      select: {
+        id: true,
+        key: true
+      }
+    });
+
+    return [...preferredProviders, ...fallbackProviders];
   }
 
   private pickBestCandidate(candidates: OttChannelCandidate[] | undefined): OttChannelCandidate | null {
