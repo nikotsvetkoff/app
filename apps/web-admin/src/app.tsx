@@ -15,6 +15,7 @@ const API_BASE = resolveApiBase();
 const TOKEN_KEY = 'iptv:web-admin:token';
 const REMEMBER_ME_KEY = 'iptv:web-admin:remember-me';
 const REGISTER_RESEND_COOLDOWN_SEC = 60;
+const PLAYLIST_FILE_MAX_BYTES = 2_000_000;
 
 type StatusTone = 'idle' | 'ok' | 'error';
 type DevicePlaylistMode = 'GLOBAL' | 'SOURCE' | 'CUSTOM';
@@ -42,6 +43,14 @@ interface ClientItem {
   updatedAt: string;
 }
 
+interface FinalClientDraft {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  address: string;
+  devicesAllowed: string;
+}
+
 interface PairedDeviceItem {
   id: string;
   name: string;
@@ -53,6 +62,8 @@ interface PairedDeviceItem {
   playlistMode: DevicePlaylistMode;
   customPlaylistId: string | null;
   customPlaylistName: string | null;
+  sourcePlaylistId: string | null;
+  sourcePlaylistName: string | null;
 }
 
 interface AdminItem {
@@ -78,6 +89,8 @@ interface BasePlaylistItem {
   id: string;
   name: string;
   url: string;
+  sourceType?: 'url' | 'file';
+  fileName?: string | null;
   channelsCount: number;
   cacheUpdatedAt: string | null;
   lastFetchedAt: string | null;
@@ -113,6 +126,14 @@ interface CustomPlaylistDetailItem extends CustomPlaylistListItem {
   channels: PlaylistChannelItem[];
 }
 
+interface PlaylistSelectionOption {
+  value: string;
+  label: string;
+  group: 'source' | 'custom';
+  mode: DevicePlaylistMode;
+  playlistId: string;
+}
+
 interface AuditLogItem {
   id: string;
   action: string;
@@ -128,11 +149,11 @@ interface AuditLogItem {
   createdAt: string;
 }
 
-type AuditSection = 'registration' | 'playlists' | 'devices' | 'internal';
+type AuditSection = 'registration' | 'playlists' | 'internal';
 type AuditOutcome = 'success' | 'error';
 type LandingTile = 'playlists' | 'devices' | 'cabinet' | 'how';
-type StudioSection = 'admins' | 'forms' | 'playlists' | 'constructor' | 'devices' | 'account' | 'logs';
-type AddMenuItem = 'playlist' | 'device' | 'subscriber';
+type StudioSection = 'admins' | 'forms' | 'playlists' | 'constructor' | 'account' | 'logs';
+type AddMenuItem = 'playlist' | 'subscriber';
 type PlaylistsSubMenuItem = 'base' | 'modified';
 
 const HELP_TEXT: Record<FocusTopic, string> = {
@@ -143,7 +164,7 @@ const HELP_TEXT: Record<FocusTopic, string> = {
   clients:
     'Клиент добавляется один раз, затем выбирается для каждой новой привязки устройств.',
   pairing:
-    'Введите код с плеера, выберите клиента и режим плейлиста для устройства (global/source/custom).',
+    'Введите код с плеера в форме абонента. Устройство привязывается к новому абоненту, а плейлист назначается в разделе абонентов.',
   history:
     'Журнал показывает действия администраторов: метод, endpoint, результат и время выполнения.',
   sources:
@@ -311,6 +332,28 @@ const sortClients = (rows: ClientItem[]): ClientItem[] => {
   });
 };
 
+const toFinalClientDraft = (client: ClientItem): FinalClientDraft => ({
+  firstName: client.firstName,
+  lastName: client.lastName,
+  phone: client.phone,
+  address: client.address,
+  devicesAllowed: String(client.devicesAllowed)
+});
+
+const areFinalClientDraftsEqual = (left: FinalClientDraft | undefined, right: FinalClientDraft): boolean => {
+  if (!left) {
+    return false;
+  }
+
+  return (
+    left.firstName === right.firstName &&
+    left.lastName === right.lastName &&
+    left.phone === right.phone &&
+    left.address === right.address &&
+    left.devicesAllowed === right.devicesAllowed
+  );
+};
+
 const parseDateMs = (value: string): number => {
   const parsed = Date.parse(value);
   return Number.isFinite(parsed) ? parsed : 0;
@@ -429,7 +472,7 @@ const pickSelectedClientId = (rows: ClientItem[], preferredId: string): string =
   if (preferredId && rows.some((row) => row.id === preferredId)) {
     return preferredId;
   }
-  return rows[0]?.id ?? '';
+  return '';
 };
 
 const sortPlaylistChannels = (rows: PlaylistChannelItem[]): PlaylistChannelItem[] => {
@@ -571,6 +614,8 @@ export const App: React.FC = () => {
 
   const [playlistSourceName, setPlaylistSourceName] = useState('');
   const [playlistUrl, setPlaylistUrl] = useState('');
+  const [playlistFile, setPlaylistFile] = useState<File | null>(null);
+  const [playlistFileInputVersion, setPlaylistFileInputVersion] = useState(0);
   const [playlistStatus, setPlaylistStatus] = useState<PlaylistStatusItem | null>(null);
   const [basePlaylists, setBasePlaylists] = useState<BasePlaylistItem[]>([]);
   const [playlistChannels, setPlaylistChannels] = useState<PlaylistChannelItem[]>([]);
@@ -591,8 +636,9 @@ export const App: React.FC = () => {
   >({});
   const [selectedClientId, setSelectedClientId] = useState('');
   const [pairCode, setPairCode] = useState(() => getPairCodeFromUrl());
-  const [pairPlaylistMode, setPairPlaylistMode] = useState<DevicePlaylistMode>('GLOBAL');
+  const [pairPlaylistMode, setPairPlaylistMode] = useState<DevicePlaylistMode>('SOURCE');
   const [pairCustomPlaylistId, setPairCustomPlaylistId] = useState('');
+  const [pairPlaylistSelection, setPairPlaylistSelection] = useState('');
   const [editingClientId, setEditingClientId] = useState('');
 
   const [statusMessage, setStatusMessage] = useState('Готово.');
@@ -612,9 +658,8 @@ export const App: React.FC = () => {
   const [studioSection, setStudioSection] = useState<StudioSection>('forms');
   const [addMenuItem, setAddMenuItem] = useState<AddMenuItem>('playlist');
   const [playlistsSubMenuItem, setPlaylistsSubMenuItem] = useState<PlaylistsSubMenuItem>('base');
-  const [expandedDeviceClientId, setExpandedDeviceClientId] = useState('');
   const [expandedFinalClientId, setExpandedFinalClientId] = useState('');
-  const [finalClientDeviceDrafts, setFinalClientDeviceDrafts] = useState<Record<string, string>>({});
+  const [finalClientDrafts, setFinalClientDrafts] = useState<Record<string, FinalClientDraft>>({});
   const [auditSection, setAuditSection] = useState<AuditSection>('registration');
   const [auditOutcome, setAuditOutcome] = useState<AuditOutcome>('error');
   const [auditLogs, setAuditLogs] = useState<AuditLogItem[]>([]);
@@ -638,15 +683,14 @@ export const App: React.FC = () => {
     [clients, selectedClientId]
   );
 
-  const deviceGroupsByClient = useMemo(() => {
+  const pairedDevicesByClient = useMemo(() => {
     const byClientId = new Map<string, PairedDeviceItem[]>();
-    const unassignedDevices: PairedDeviceItem[] = [];
-    const knownClientIds = new Set<string>();
+    const unassigned: PairedDeviceItem[] = [];
 
     for (const device of pairedDevices) {
       const clientId = device.clientId?.trim() ?? '';
       if (!clientId) {
-        unassignedDevices.push(device);
+        unassigned.push(device);
         continue;
       }
 
@@ -658,39 +702,8 @@ export const App: React.FC = () => {
       }
     }
 
-    const rows = clients.map((client) => ({
-      id: client.id,
-      name: `${client.lastName} ${client.firstName}`.trim() || client.phone || 'Client',
-      meta: client.phone,
-      devices: byClientId.get(client.id) ?? []
-    }));
-    for (const client of clients) {
-      knownClientIds.add(client.id);
-    }
-
-    for (const [clientId, devices] of byClientId.entries()) {
-      if (knownClientIds.has(clientId)) {
-        continue;
-      }
-      rows.push({
-        id: `__missing__${clientId}`,
-        name: 'Client inactiv',
-        meta: clientId,
-        devices
-      });
-    }
-
-    if (unassignedDevices.length > 0) {
-      rows.push({
-        id: '__unassigned__',
-        name: 'Fara abonat',
-        meta: '',
-        devices: unassignedDevices
-      });
-    }
-
-    return rows;
-  }, [clients, pairedDevices]);
+    return { byClientId, unassigned };
+  }, [pairedDevices]);
 
   const playlistChannelsById = useMemo(
     () => new Map(playlistChannels.map((channel) => [channel.id, channel] as const)),
@@ -700,6 +713,36 @@ export const App: React.FC = () => {
   const selectedCustomPlaylist = useMemo(
     () => customPlaylists.find((playlist) => playlist.id === selectedCustomPlaylistId) ?? null,
     [customPlaylists, selectedCustomPlaylistId]
+  );
+
+  const playlistSelectionOptions = useMemo<PlaylistSelectionOption[]>(() => {
+    const sourceOptions: PlaylistSelectionOption[] = basePlaylists.map((playlist) => ({
+      value: `SOURCE:${playlist.id}`,
+      label: playlist.name,
+      group: 'source',
+      mode: 'SOURCE',
+      playlistId: playlist.id
+    }));
+
+    const customOptions: PlaylistSelectionOption[] = customPlaylists.map((playlist) => ({
+      value: `CUSTOM:${playlist.id}`,
+      label: playlist.name,
+      group: 'custom',
+      mode: 'CUSTOM',
+      playlistId: playlist.id
+    }));
+
+    return [...sourceOptions, ...customOptions];
+  }, [basePlaylists, customPlaylists]);
+
+  const sourcePlaylistSelectionOptions = useMemo(
+    () => playlistSelectionOptions.filter((option) => option.group === 'source'),
+    [playlistSelectionOptions]
+  );
+
+  const customPlaylistSelectionOptions = useMemo(
+    () => playlistSelectionOptions.filter((option) => option.group === 'custom'),
+    [playlistSelectionOptions]
   );
 
   const customDraftChannels = useMemo(() => {
@@ -797,6 +840,34 @@ export const App: React.FC = () => {
     return newest?.createdAt ?? null;
   }, [admins]);
 
+  const parsePlaylistSelectionValue = useCallback(
+    (selectionValue: string): { mode: DevicePlaylistMode; playlistId: string } | null => {
+      const match = playlistSelectionOptions.find((option) => option.value === selectionValue);
+      if (!match) {
+        return null;
+      }
+
+      return {
+        mode: match.mode,
+        playlistId: match.playlistId
+      };
+    },
+    [playlistSelectionOptions]
+  );
+
+  const normalizeDeviceModeForSelection = useCallback(
+    (mode: DevicePlaylistMode): DevicePlaylistMode => (mode === 'GLOBAL' ? 'SOURCE' : mode),
+    []
+  );
+
+  const getDefaultSourcePlaylistSelectionValue = useCallback(
+    (): string =>
+      playlistSelectionOptions.find((option) => option.mode === 'SOURCE')?.value ??
+      playlistSelectionOptions[0]?.value ??
+      '',
+    [playlistSelectionOptions]
+  );
+
   useEffect(() => {
     const timer = window.setInterval(() => {
       setClockLabel(formatClock());
@@ -814,37 +885,18 @@ export const App: React.FC = () => {
   }, [landingAuthOpen]);
 
   useEffect(() => {
-    if (deviceGroupsByClient.length === 0) {
-      if (expandedDeviceClientId) {
-        setExpandedDeviceClientId('');
-      }
-      return;
-    }
-
-    // Allow collapsed state when user toggles the currently open client.
-    if (!expandedDeviceClientId) {
-      return;
-    }
-
-    const exists = deviceGroupsByClient.some((group) => group.id === expandedDeviceClientId);
-    if (!exists) {
-      const firstWithDevices = deviceGroupsByClient.find((group) => group.devices.length > 0) ?? deviceGroupsByClient[0];
-      if (firstWithDevices && firstWithDevices.id !== expandedDeviceClientId) {
-        setExpandedDeviceClientId(firstWithDevices.id);
-      }
-    }
-  }, [deviceGroupsByClient, expandedDeviceClientId]);
-
-  useEffect(() => {
-    setFinalClientDeviceDrafts((current) => {
-      const next: Record<string, string> = {};
+    setFinalClientDrafts((current) => {
+      const next: Record<string, FinalClientDraft> = {};
       for (const client of clients) {
-        next[client.id] = String(client.devicesAllowed);
+        next[client.id] = toFinalClientDraft(client);
       }
 
       const currentKeys = Object.keys(current);
       const nextKeys = Object.keys(next);
-      if (currentKeys.length === nextKeys.length && nextKeys.every((key) => current[key] === next[key])) {
+      if (
+        currentKeys.length === nextKeys.length &&
+        nextKeys.every((key) => areFinalClientDraftsEqual(current[key], next[key]))
+      ) {
         return current;
       }
 
@@ -890,31 +942,59 @@ export const App: React.FC = () => {
   }, [playlistChannels, selectedSourceChannelIds]);
 
   useEffect(() => {
-    if (pairPlaylistMode !== 'CUSTOM') {
-      setPairCustomPlaylistId('');
+    if (playlistSelectionOptions.length === 0) {
+      if (pairPlaylistSelection) {
+        setPairPlaylistSelection('');
+      }
+      if (pairPlaylistMode !== 'SOURCE') {
+        setPairPlaylistMode('SOURCE');
+      }
+      if (pairCustomPlaylistId) {
+        setPairCustomPlaylistId('');
+      }
       return;
     }
 
-    if (!pairCustomPlaylistId) {
+    const hasCurrent = playlistSelectionOptions.some((option) => option.value === pairPlaylistSelection);
+    const nextSelection = hasCurrent ? pairPlaylistSelection : playlistSelectionOptions[0].value;
+
+    if (nextSelection !== pairPlaylistSelection) {
+      setPairPlaylistSelection(nextSelection);
       return;
     }
 
-    const exists = customPlaylists.some((playlist) => playlist.id === pairCustomPlaylistId);
-    if (!exists) {
-      setPairCustomPlaylistId('');
+    const parsed = parsePlaylistSelectionValue(nextSelection);
+    if (!parsed) {
+      return;
     }
-  }, [customPlaylists, pairCustomPlaylistId, pairPlaylistMode]);
+
+    if (pairPlaylistMode !== parsed.mode) {
+      setPairPlaylistMode(parsed.mode);
+    }
+    if (pairCustomPlaylistId !== parsed.playlistId) {
+      setPairCustomPlaylistId(parsed.playlistId);
+    }
+  }, [
+    pairCustomPlaylistId,
+    pairPlaylistMode,
+    pairPlaylistSelection,
+    parsePlaylistSelectionValue,
+    playlistSelectionOptions
+  ]);
 
   useEffect(() => {
     setDevicePlaylistDrafts((current) => {
       const next: Record<string, { mode: DevicePlaylistMode; customPlaylistId: string }> = {};
       for (const device of pairedDevices) {
         const previous = current[device.id];
-        const fallbackMode = device.playlistMode;
-        const fallbackCustomPlaylistId = device.customPlaylistId ?? '';
+        const fallbackMode = normalizeDeviceModeForSelection(device.playlistMode);
+        const fallbackCustomPlaylistId =
+          fallbackMode === 'CUSTOM'
+            ? (device.customPlaylistId ?? '')
+            : (device.sourcePlaylistId ?? device.customPlaylistId ?? '');
         next[device.id] = previous
           ? {
-              mode: previous.mode,
+              mode: normalizeDeviceModeForSelection(previous.mode),
               customPlaylistId: previous.customPlaylistId
             }
           : {
@@ -929,14 +1009,30 @@ export const App: React.FC = () => {
           !customPlaylists.some((playlist) => playlist.id === draftCustomId)
         ) {
           next[device.id] = {
-            mode: 'GLOBAL',
-            customPlaylistId: ''
+            mode: 'SOURCE',
+            customPlaylistId: sourcePlaylistSelectionOptions[0]?.playlistId ?? ''
+          };
+        }
+
+        if (
+          next[device.id].mode === 'SOURCE' &&
+          draftCustomId &&
+          !sourcePlaylistSelectionOptions.some((playlist) => playlist.playlistId === draftCustomId)
+        ) {
+          next[device.id] = {
+            mode: 'SOURCE',
+            customPlaylistId: sourcePlaylistSelectionOptions[0]?.playlistId ?? ''
           };
         }
       }
       return next;
     });
-  }, [customPlaylists, pairedDevices]);
+  }, [
+    customPlaylists,
+    normalizeDeviceModeForSelection,
+    pairedDevices,
+    sourcePlaylistSelectionOptions
+  ]);
 
   useEffect(() => {
     const closeMobileMenuOnDesktop = () => {
@@ -1013,8 +1109,23 @@ export const App: React.FC = () => {
   }, []);
 
   const reportError = useCallback((error: unknown): void => {
+    const message = normalizeErrorMessage(error);
+    const unauthorized =
+      message.toLowerCase().includes('invalid token') ||
+      message.toLowerCase().includes('unauthorized') ||
+      message.toLowerCase().includes('не авторизован');
+
+    if (unauthorized) {
+      clearStoredToken();
+      setTokenRevision((value) => value + 1);
+      setStatusTone('error');
+      setStatusMessage('Sesiunea a expirat. Autentifica-te din nou.');
+      setFocusTopic('account');
+      return;
+    }
+
     setStatusTone('error');
-    setStatusMessage(normalizeErrorMessage(error));
+    setStatusMessage(message);
     setFocusTopic('status');
   }, []);
 
@@ -1291,13 +1402,16 @@ export const App: React.FC = () => {
       setCustomPlaylists([]);
       setPlaylistSourceName('');
       setPlaylistUrl('');
+      setPlaylistFile(null);
+      setPlaylistFileInputVersion((value) => value + 1);
       clearCustomPlaylistEditor();
       setNewCustomPlaylistName('');
       setPlaylistSourceSearch('');
       setSelectedClientId('');
       setEditingClientId('');
-      setPairPlaylistMode('GLOBAL');
+      setPairPlaylistMode('SOURCE');
       setPairCustomPlaylistId('');
+      setPairPlaylistSelection('');
       setAuditLogs([]);
       setAuditSection('registration');
       setAuditOutcome('error');
@@ -1327,6 +1441,42 @@ export const App: React.FC = () => {
 
     void loadPlaylistWorkspace(token);
   }, [landingPlaylistsPageOpen, loadPlaylistWorkspace, token]);
+
+  useEffect(() => {
+    if (token) {
+      return;
+    }
+
+    const normalizedPairCode = pairCode.trim().toUpperCase();
+    if (!normalizedPairCode) {
+      return;
+    }
+
+    if (!landingAuthOpen) {
+      setLandingAuthOpen(true);
+    }
+    setStatusTone('idle');
+    setStatusMessage('Cod Pair detectat. Login admin pentru formularul de abonat nou si pair automat.');
+    setFocusTopic('account');
+  }, [landingAuthOpen, pairCode, token]);
+
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    const normalizedPairCode = pairCode.trim().toUpperCase();
+    if (!normalizedPairCode) {
+      return;
+    }
+
+    setStudioSection('forms');
+    setAddMenuItem('subscriber');
+    setStatusTone('idle');
+    setStatusMessage('Cod Pair detectat. Completeaza abonatul nou; pair-ul se face automat la creare.');
+    setFocusTopic('pairing');
+    void Promise.all([loadDevices(token), loadClients(token)]);
+  }, [loadClients, loadDevices, pairCode, token]);
 
   const callAuth = async (): Promise<void> => {
     try {
@@ -1964,6 +2114,20 @@ export const App: React.FC = () => {
       setClientAddress('');
       setClientDevicesAllowed('1');
 
+      const normalizedPairCode = pairCode.trim().toUpperCase();
+      if (normalizedPairCode) {
+        try {
+          await confirmPair(created.id, `Abonat adaugat si TV conectat: ${created.lastName} ${created.firstName}.`);
+        } catch (pairError) {
+          setStatusTone('error');
+          setStatusMessage(
+            `Abonatul a fost adaugat (${created.lastName} ${created.firstName}), dar pairing-ul a esuat: ${normalizeErrorMessage(pairError)}.`
+          );
+          setFocusTopic('pairing');
+        }
+        return;
+      }
+
       setStatusTone('ok');
       setStatusMessage(`Клиент добавлен: ${created.lastName} ${created.firstName}.`);
       setFocusTopic('clients');
@@ -1994,42 +2158,67 @@ export const App: React.FC = () => {
 
   const toggleFinalClientCard = (client: ClientItem): void => {
     setExpandedFinalClientId((current) => (current === client.id ? '' : client.id));
-    setFinalClientDeviceDrafts((current) => {
-      if (current[client.id] !== undefined) {
+    setFinalClientDrafts((current) => {
+      if (current[client.id]) {
         return current;
       }
+
       return {
         ...current,
-        [client.id]: String(client.devicesAllowed)
+        [client.id]: toFinalClientDraft(client)
       };
     });
   };
 
-  const setFinalClientDevicesDraft = (clientId: string, value: string): void => {
-    setFinalClientDeviceDrafts((current) => ({
+  const setFinalClientDraftField = (clientId: string, field: keyof FinalClientDraft, value: string): void => {
+    setFinalClientDrafts((current) => {
+      const draft = current[clientId];
+      if (!draft) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [clientId]: {
+          ...draft,
+          [field]: value
+        }
+      };
+    });
+  };
+
+  const resetFinalClientDraft = (client: ClientItem): void => {
+    setFinalClientDrafts((current) => ({
       ...current,
-      [clientId]: value
+      [client.id]: toFinalClientDraft(client)
     }));
   };
 
-  const resetFinalClientDevicesDraft = (client: ClientItem): void => {
-    setFinalClientDeviceDrafts((current) => ({
-      ...current,
-      [client.id]: String(client.devicesAllowed)
-    }));
-  };
-
-  const saveFinalClientDevicesAllowed = async (client: ClientItem): Promise<void> => {
+  const saveFinalClient = async (client: ClientItem): Promise<void> => {
     try {
-      const rawValue = (finalClientDeviceDrafts[client.id] ?? String(client.devicesAllowed)).trim();
-      const devicesAllowed = Number.parseInt(rawValue, 10);
+      const draft = finalClientDrafts[client.id] ?? toFinalClientDraft(client);
+      const devicesAllowed = Number.parseInt(draft.devicesAllowed.trim(), 10);
       if (!Number.isFinite(devicesAllowed) || devicesAllowed < 1) {
         throw new Error('Cantitatea de device-uri trebuie sa fie cel putin 1.');
       }
 
-      if (devicesAllowed === client.devicesAllowed) {
+      const nextPayload = {
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        phone: draft.phone,
+        address: draft.address,
+        devicesAllowed
+      };
+      const hasChanges =
+        nextPayload.firstName !== client.firstName ||
+        nextPayload.lastName !== client.lastName ||
+        nextPayload.phone !== client.phone ||
+        nextPayload.address !== client.address ||
+        nextPayload.devicesAllowed !== client.devicesAllowed;
+
+      if (!hasChanges) {
         setStatusTone('ok');
-        setStatusMessage(`Limita pentru ${client.lastName} ${client.firstName} este deja ${client.devicesAllowed}.`);
+        setStatusMessage(`Nu exista modificari pentru ${client.lastName} ${client.firstName}.`);
         return;
       }
 
@@ -2038,18 +2227,12 @@ export const App: React.FC = () => {
       const updated = await fetchJson<ClientItem>(`${API_BASE}/clients/${client.id}`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({
-          firstName: client.firstName,
-          lastName: client.lastName,
-          phone: client.phone,
-          address: client.address,
-          devicesAllowed
-        })
+        body: JSON.stringify(nextPayload)
       });
 
       await syncClients(authToken, updated.id);
       setStatusTone('ok');
-      setStatusMessage(`Limita device-uri actualizata: ${updated.lastName} ${updated.firstName} -> ${updated.devicesAllowed}.`);
+      setStatusMessage(`Abonat actualizat: ${updated.lastName} ${updated.firstName}.`);
       setFocusTopic('clients');
     } catch (error) {
       reportError(error);
@@ -2118,51 +2301,73 @@ export const App: React.FC = () => {
     }
   };
 
-  const confirmPair = async () => {
+  const confirmPair = async (overrideClientId?: string, successMessage?: string) => {
     try {
       const normalizedCode = pairCode.trim().toUpperCase();
       if (!normalizedCode) {
-        throw new Error('Введите код привязки.');
+        throw new Error('Introdu codul de Pair de pe TV.');
       }
-      if (!selectedClientId) {
-        throw new Error('Выберите клиента перед привязкой.');
-      }
-      if (pairPlaylistMode === 'CUSTOM' && !pairCustomPlaylistId) {
-        throw new Error('Выберите custom-плейлист для устройства.');
+      if (!/^[A-Z0-9]{6,8}$/.test(normalizedCode)) {
+        throw new Error('Codul Pair trebuie sa aiba 6-8 caractere (litere/cifre).');
       }
 
       const authToken = requireToken();
+      const normalizedClientId = (overrideClientId ?? selectedClientId).trim();
+      if (!normalizedClientId) {
+        throw new Error('Creeaza sau selecteaza abonatul pentru acest Pair.');
+      }
+      const parsedPairPlaylistSelection = parsePlaylistSelectionValue(pairPlaylistSelection);
+      if (!parsedPairPlaylistSelection) {
+        throw new Error('Selecteaza un playlist existent.');
+      }
       await fetchJson<{ success: true }>(`${API_BASE}/devices/pair/confirm`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           code: normalizedCode,
-          clientId: selectedClientId,
-          playlistMode: pairPlaylistMode,
-          customPlaylistId: pairPlaylistMode === 'CUSTOM' ? pairCustomPlaylistId : undefined
+          clientId: normalizedClientId,
+          playlistMode: parsedPairPlaylistSelection.mode,
+          customPlaylistId: parsedPairPlaylistSelection.playlistId || undefined
         })
       });
 
-      await syncClients(authToken, selectedClientId);
       await loadDevices(authToken);
       setPairCode('');
-      setPairPlaylistMode('GLOBAL');
-      setPairCustomPlaylistId('');
+      removeQueryParam('pairCode');
       setStatusTone('ok');
-      setStatusMessage('Привязка подтверждена для выбранного клиента.');
+      setStatusMessage(successMessage ?? 'Device confirmat. Il gasesti in meniul Abonati Finali.');
       setFocusTopic('pairing');
     } catch (error) {
+      if (overrideClientId) {
+        throw error;
+      }
       reportError(error);
     }
+  };
+
+  const setPairPlaylistSelectionValue = (selectionValue: string): void => {
+    setPairPlaylistSelection(selectionValue);
+    const parsed = parsePlaylistSelectionValue(selectionValue);
+    if (!parsed) {
+      return;
+    }
+    setPairPlaylistMode(parsed.mode);
+    setPairCustomPlaylistId(parsed.playlistId);
   };
 
   const getDevicePlaylistDraft = (
     device: PairedDeviceItem
   ): { mode: DevicePlaylistMode; customPlaylistId: string } => {
+    const normalizedMode = normalizeDeviceModeForSelection(device.playlistMode);
+    const fallbackPlaylistId =
+      normalizedMode === 'CUSTOM'
+        ? (device.customPlaylistId ?? '')
+        : (device.sourcePlaylistId ?? device.customPlaylistId ?? '');
+
     return (
       devicePlaylistDrafts[device.id] ?? {
-        mode: device.playlistMode,
-        customPlaylistId: device.customPlaylistId ?? ''
+        mode: normalizedMode,
+        customPlaylistId: fallbackPlaylistId
       }
     );
   };
@@ -2172,7 +2377,7 @@ export const App: React.FC = () => {
       ...current,
       [deviceId]: {
         mode,
-        customPlaylistId: mode === 'CUSTOM' ? (current[deviceId]?.customPlaylistId ?? '') : ''
+        customPlaylistId: mode === 'GLOBAL' ? '' : (current[deviceId]?.customPlaylistId ?? '')
       }
     }));
   };
@@ -2189,27 +2394,62 @@ export const App: React.FC = () => {
 
   const getDevicePlaylistSelectionValue = (device: PairedDeviceItem): string => {
     const draft = getDevicePlaylistDraft(device);
-    return draft.mode === 'CUSTOM' ? `CUSTOM:${draft.customPlaylistId}` : draft.mode;
+    if (draft.mode === 'CUSTOM') {
+      return `CUSTOM:${draft.customPlaylistId}`;
+    }
+
+    if (draft.customPlaylistId) {
+      const sourceValue = `SOURCE:${draft.customPlaylistId}`;
+      if (playlistSelectionOptions.some((option) => option.value === sourceValue)) {
+        return sourceValue;
+      }
+    }
+
+    return getDefaultSourcePlaylistSelectionValue();
+  };
+
+  const getDeviceCurrentPlaylistLabel = (device: PairedDeviceItem): string => {
+    if (device.playlistMode === 'CUSTOM') {
+      if (device.customPlaylistName) {
+        return device.customPlaylistName;
+      }
+      const customOption = playlistSelectionOptions.find(
+        (option) => option.mode === 'CUSTOM' && option.playlistId === (device.customPlaylistId ?? '')
+      );
+      return customOption?.label ?? 'Playlist custom';
+    }
+
+    if (device.sourcePlaylistName) {
+      return device.sourcePlaylistName;
+    }
+
+    const sourceId = device.sourcePlaylistId ?? device.customPlaylistId ?? '';
+    const sourceOption = sourceId
+      ? playlistSelectionOptions.find((option) => option.mode === 'SOURCE' && option.playlistId === sourceId)
+      : playlistSelectionOptions.find((option) => option.mode === 'SOURCE');
+
+    if (sourceOption) {
+      return sourceOption.label;
+    }
+
+    return playlistSelectionOptions[0]?.label ?? 'Fara playlist';
   };
 
   const setDevicePlaylistSelectionValue = (deviceId: string, selectionValue: string): void => {
-    if (selectionValue === 'GLOBAL' || selectionValue === 'SOURCE') {
-      setDevicePlaylistModeDraft(deviceId, selectionValue);
+    const parsed = parsePlaylistSelectionValue(selectionValue);
+    if (!parsed) {
       return;
     }
 
-    if (selectionValue.startsWith('CUSTOM:')) {
-      const customPlaylistId = selectionValue.slice('CUSTOM:'.length);
-      setDevicePlaylistModeDraft(deviceId, 'CUSTOM');
-      setDeviceCustomPlaylistDraft(deviceId, customPlaylistId);
-    }
+    setDevicePlaylistModeDraft(deviceId, parsed.mode);
+    setDeviceCustomPlaylistDraft(deviceId, parsed.playlistId);
   };
 
   const saveDevicePlaylistAssignment = async (device: PairedDeviceItem): Promise<void> => {
     const draft = getDevicePlaylistDraft(device);
-    if (draft.mode === 'CUSTOM' && !draft.customPlaylistId) {
+    if ((draft.mode === 'CUSTOM' || draft.mode === 'SOURCE') && !draft.customPlaylistId) {
       setStatusTone('error');
-      setStatusMessage('Для режима CUSTOM выберите плейлист.');
+      setStatusMessage('Selecteaza un playlist din lista.');
       setFocusTopic('pairing');
       return;
     }
@@ -2222,7 +2462,7 @@ export const App: React.FC = () => {
         headers: { Authorization: `Bearer ${authToken}` },
         body: JSON.stringify({
           playlistMode: draft.mode,
-          customPlaylistId: draft.mode === 'CUSTOM' ? draft.customPlaylistId : undefined
+          customPlaylistId: draft.customPlaylistId || undefined
         })
       });
 
@@ -2240,31 +2480,59 @@ export const App: React.FC = () => {
   const savePlaylist = async () => {
     try {
       const normalizedName = playlistSourceName.trim();
-      const normalizedUrl = playlistUrl.trim();
       if (!normalizedName) {
         throw new Error('Введите название базового плейлиста.');
-      }
-      if (!normalizedUrl) {
-        throw new Error('Введите URL плейлиста.');
-      }
-      if (countHttpSchemes(normalizedUrl) > 1) {
-        throw new Error('URL содержит больше одной ссылки. Вставьте только один полный URL.');
       }
 
       const authToken = requireToken();
       setPlaylistBusy(true);
-      await fetchJson<BasePlaylistItem>(`${API_BASE}/playlist/sources`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${authToken}` },
-        body: JSON.stringify({ name: normalizedName, url: normalizedUrl })
-      });
+      if (playlistFile) {
+        if (playlistFile.size > PLAYLIST_FILE_MAX_BYTES) {
+          throw new Error('Файл плейлиста слишком большой. Максимум 2 MB.');
+        }
+
+        const content = (await playlistFile.text()).replace(/^\uFEFF/, '').trim();
+        if (!content) {
+          throw new Error('Выбранный файл плейлиста пустой.');
+        }
+
+        await fetchJson<BasePlaylistItem>(`${API_BASE}/playlist/sources/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({
+            name: normalizedName,
+            fileName: playlistFile.name || 'uploaded-playlist.m3u8',
+            content
+          })
+        });
+      } else {
+        const normalizedUrl = playlistUrl.trim();
+        if (!normalizedUrl) {
+          throw new Error('Введите URL плейлиста или выберите файл.');
+        }
+        if (countHttpSchemes(normalizedUrl) > 1) {
+          throw new Error('URL содержит больше одной ссылки. Вставьте только один полный URL.');
+        }
+
+        await fetchJson<BasePlaylistItem>(`${API_BASE}/playlist/sources`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${authToken}` },
+          body: JSON.stringify({ name: normalizedName, url: normalizedUrl })
+        });
+      }
 
       await loadPlaylistWorkspace(authToken);
       setPlaylistSourceName('');
       setPlaylistUrl('');
+      setPlaylistFile(null);
+      setPlaylistFileInputVersion((value) => value + 1);
 
       setStatusTone('ok');
-      setStatusMessage(`Базовый плейлист добавлен: ${normalizedName}.`);
+      setStatusMessage(
+        playlistFile
+          ? `Базовый плейлист добавлен из файла: ${normalizedName}.`
+          : `Базовый плейлист добавлен: ${normalizedName}.`
+      );
       setFocusTopic('sources');
     } catch (error) {
       reportError(error);
@@ -2743,12 +3011,6 @@ export const App: React.FC = () => {
       return;
     }
 
-    if (item === 'device') {
-      setFocusTopic('pairing');
-      void Promise.all([loadDevices(token), loadClients(token, selectedClientId), loadPlaylistWorkspace(token)]);
-      return;
-    }
-
     setFocusTopic('clients');
     void loadClients(token, selectedClientId);
   };
@@ -2989,6 +3251,19 @@ export const App: React.FC = () => {
                     />
                   </label>
 
+                  <label className="wa-row">
+                    <span className="wa-label">или файл плейлиста (M3U / M3U8)</span>
+                    <input
+                      key={`landing-playlist-file-${playlistFileInputVersion}`}
+                      className="wa-input"
+                      type="file"
+                      accept=".m3u,.m3u8,text/plain,application/x-mpegURL,audio/x-mpegurl"
+                      onChange={(event) => setPlaylistFile(event.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  <p className="wa-base-playlists-meta">Если выбран файл, поле URL не используется.</p>
+                  {playlistFile ? <p className="wa-base-playlists-meta">Выбран файл: {playlistFile.name}</p> : null}
+
                   <div className="wa-row wa-row--actions">
                     <span className="wa-label">Действия</span>
                     <div className="wa-actions">
@@ -3046,12 +3321,26 @@ export const App: React.FC = () => {
                         {basePlaylists.map((playlist) => (
                           <article key={playlist.id} className="wa-base-playlists-custom-item">
                             <p className="wa-base-playlists-custom-item-name">{playlist.name}</p>
-                            <p className="wa-base-playlists-custom-item-meta">{playlist.url}</p>
+                            <p className="wa-base-playlists-custom-item-meta">
+                              {playlist.sourceType === 'file'
+                                ? `Файл: ${playlist.fileName ?? 'uploaded-playlist.m3u8'}`
+                                : playlist.url}
+                            </p>
                             <p className="wa-base-playlists-custom-item-meta">
                               каналов: {playlist.channelsCount} | обновлено: {formatDateTime(playlist.cacheUpdatedAt)}
                             </p>
                             <div className="wa-actions">
-                              <button type="button" className="wa-btn" onClick={() => void refreshBasePlaylist(playlist.id, playlist.name)} disabled={playlistBusy}>
+                              <button
+                                type="button"
+                                className="wa-btn"
+                                onClick={() => void refreshBasePlaylist(playlist.id, playlist.name)}
+                                disabled={playlistBusy || playlist.sourceType === 'file'}
+                                title={
+                                  playlist.sourceType === 'file'
+                                    ? 'Источник добавлен из файла. Для обновления загрузите новый файл.'
+                                    : undefined
+                                }
+                              >
                                 Обновить
                               </button>
                               <button type="button" className="wa-btn" onClick={() => void renameBasePlaylist(playlist)} disabled={playlistBusy}>
@@ -3483,7 +3772,7 @@ export const App: React.FC = () => {
                 <section className="wa-base-devices" aria-label="Устройства">
                   <h2 className="wa-base-devices-title">Устройства и Pair</h2>
                   <p className="wa-base-devices-text">
-                    Введите код с телефона/TV, выберите абонента и плейлист для нового устройства.
+                    Scanează QR-ul de pe TV și deschide linkul. Aici confirmi pair-ul pentru abonatul ales.
                   </p>
 
                   {token ? (
@@ -3505,52 +3794,48 @@ export const App: React.FC = () => {
                           </select>
                         </label>
 
-                        <label className="wa-row">
-                          <span className="wa-label">Код Pair</span>
-                          <input
-                            className="wa-input"
-                            value={pairCode}
-                            onChange={(event) => setPairCode(event.target.value.toUpperCase())}
-                            placeholder="A1B2C3"
-                            maxLength={8}
-                          />
-                        </label>
+                        <p className="wa-base-playlists-meta">
+                          QR Pair: {pairCode.trim() ? pairCode.trim().toUpperCase() : 'nu este detectat (deschide linkul QR din nou)'}
+                        </p>
 
                         <label className="wa-row">
                           <span className="wa-label">Плейлист для нового устройства</span>
                           <select
                             className="wa-input"
-                            value={pairPlaylistMode}
-                            onChange={(event) => setPairPlaylistMode(event.target.value as DevicePlaylistMode)}
+                            value={pairPlaylistSelection}
+                            onChange={(event) => setPairPlaylistSelectionValue(event.target.value)}
                           >
-                            <option value="GLOBAL">GLOBAL (как в настройке системы)</option>
-                            <option value="SOURCE">SOURCE (только исходный список)</option>
-                            <option value="CUSTOM">CUSTOM (выбрать из списка)</option>
+                            {playlistSelectionOptions.length === 0 ? (
+                              <option value="">Nu exista playlisturi</option>
+                            ) : (
+                              <>
+                                {sourcePlaylistSelectionOptions.length > 0 ? (
+                                  <optgroup label="Surse de baza">
+                                    {sourcePlaylistSelectionOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                ) : null}
+                                {customPlaylistSelectionOptions.length > 0 ? (
+                                  <optgroup label="Constructor custom">
+                                    {customPlaylistSelectionOptions.map((option) => (
+                                      <option key={option.value} value={option.value}>
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                ) : null}
+                              </>
+                            )}
                           </select>
                         </label>
-
-                        {pairPlaylistMode === 'CUSTOM' ? (
-                          <label className="wa-row">
-                            <span className="wa-label">Custom-плейлист</span>
-                            <select
-                              className="wa-input"
-                              value={pairCustomPlaylistId}
-                              onChange={(event) => setPairCustomPlaylistId(event.target.value)}
-                            >
-                              <option value="">Выберите custom-плейлист</option>
-                              {customPlaylists.map((playlist) => (
-                                <option key={playlist.id} value={playlist.id}>
-                                  {playlist.name} ({playlist.channelsCount} каналов)
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        ) : null}
 
                         <div className="wa-row wa-row--actions">
                           <span className="wa-label">Действия</span>
                           <div className="wa-actions">
-                            <button type="button" className="wa-btn wa-btn--primary" onClick={() => void confirmPair()}>
+                            <button type="button" className="wa-btn wa-btn--primary" onClick={() => void confirmPair()} disabled={!pairCode.trim()}>
                               Подтвердить Pair
                             </button>
                             <button
@@ -3574,10 +3859,10 @@ export const App: React.FC = () => {
                             {pairedDevices.map((device) => {
                               const draft = getDevicePlaylistDraft(device);
                               const hasDraftChanges =
-                                draft.mode !== device.playlistMode ||
+                                draft.mode !== normalizeDeviceModeForSelection(device.playlistMode) ||
                                 (draft.mode === 'CUSTOM'
                                   ? draft.customPlaylistId !== (device.customPlaylistId ?? '')
-                                  : false);
+                                  : draft.customPlaylistId !== (device.sourcePlaylistId ?? device.customPlaylistId ?? ''));
 
                               return (
                                 <article key={device.id} className="wa-base-devices-item">
@@ -3589,8 +3874,7 @@ export const App: React.FC = () => {
                                     Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
                                   </p>
                                   <p className="wa-base-devices-item-meta">
-                                    Playlist actual: {device.playlistMode}
-                                    {device.customPlaylistName ? ` (${device.customPlaylistName})` : ''}
+                                    Playlist actual: {getDeviceCurrentPlaylistLabel(device)}
                                   </p>
 
                                   <label className="wa-row">
@@ -3600,13 +3884,30 @@ export const App: React.FC = () => {
                                       value={getDevicePlaylistSelectionValue(device)}
                                       onChange={(event) => setDevicePlaylistSelectionValue(device.id, event.target.value)}
                                     >
-                                      <option value="GLOBAL">GLOBAL (implicit)</option>
-                                      <option value="SOURCE">SOURCE (din sursa)</option>
-                                      {customPlaylists.map((playlist) => (
-                                        <option key={playlist.id} value={`CUSTOM:${playlist.id}`}>
-                                          {playlist.name} ({playlist.channelsCount} canale)
-                                        </option>
-                                      ))}
+                                      {playlistSelectionOptions.length === 0 ? (
+                                        <option value="">Nu exista playlisturi</option>
+                                      ) : (
+                                        <>
+                                          {sourcePlaylistSelectionOptions.length > 0 ? (
+                                            <optgroup label="Surse de baza">
+                                              {sourcePlaylistSelectionOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </optgroup>
+                                          ) : null}
+                                          {customPlaylistSelectionOptions.length > 0 ? (
+                                            <optgroup label="Constructor custom">
+                                              {customPlaylistSelectionOptions.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                  {option.label}
+                                                </option>
+                                              ))}
+                                            </optgroup>
+                                          ) : null}
+                                        </>
+                                      )}
                                     </select>
                                   </label>
 
@@ -4105,25 +4406,12 @@ export const App: React.FC = () => {
             </button>
             <button
               type="button"
-              className={studioSection === 'devices' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
-              onClick={() => {
-                setStudioSection('devices');
-                setFocusTopic('pairing');
-                if (token) {
-                  void Promise.all([loadDevices(token), loadClients(token, selectedClientId), loadPlaylistWorkspace(token)]);
-                }
-              }}
-            >
-              Devices
-            </button>
-            <button
-              type="button"
               className={studioSection === 'account' ? 'wa-studio-menu-item is-active' : 'wa-studio-menu-item'}
               onClick={() => {
                 setStudioSection('account');
                 setFocusTopic('clients');
                 if (token) {
-                  void loadClients(token, selectedClientId);
+                  void Promise.all([loadClients(token, selectedClientId), loadDevices(token), loadPlaylistWorkspace(token)]);
                 }
               }}
             >
@@ -4159,9 +4447,7 @@ export const App: React.FC = () => {
                 ? 'Vizualizare separata pentru playlisturi de baza si modificate.'
                 : studioSection === 'constructor'
                 ? 'Construieste un playlist nou din canalele selectate din sursele de baza.'
-                : studioSection === 'devices'
-                  ? 'Привязка устройств и назначение плейлистов.'
-                  : studioSection === 'account'
+                : studioSection === 'account'
                     ? 'Учетные записи клиентов и лимиты устройств.'
                     : studioSection === 'logs'
                       ? 'Журнал действий администраторов и технических событий.'
@@ -4478,13 +4764,6 @@ export const App: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  className={addMenuItem === 'device' ? 'wa-add-top-menu-item is-active' : 'wa-add-top-menu-item'}
-                  onClick={() => openAddMenuItem('device')}
-                >
-                  Device
-                </button>
-                <button
-                  type="button"
                   className={addMenuItem === 'subscriber' ? 'wa-add-top-menu-item is-active' : 'wa-add-top-menu-item'}
                   onClick={() => openAddMenuItem('subscriber')}
                 >
@@ -4495,7 +4774,7 @@ export const App: React.FC = () => {
               <section className="wa-base-playlists-panel" style={addMenuItem === 'playlist' ? undefined : { display: 'none' }}>
                 <h3 className="wa-base-playlists-panel-title">Adauga Playlist De Baza</h3>
                 <p className="wa-add-playlist-focus-text">
-                  Prim plan: completeaza denumirea si URL-ul playlistului de baza. Managementul avansat ramane in tabul
+                  Prim plan: completeaza denumirea si URL-ul playlistului de baza sau incarca un fisier M3U/M3U8. Managementul avansat ramane in tabul
                   Playlists.
                 </p>
                 <label className="wa-row">
@@ -4516,6 +4795,18 @@ export const App: React.FC = () => {
                     placeholder="https://example.com/playlist.m3u8"
                   />
                 </label>
+                <label className="wa-row">
+                  <span className="wa-label">sau fisier playlist (M3U/M3U8)</span>
+                  <input
+                    key={`forms-playlist-file-${playlistFileInputVersion}`}
+                    className="wa-input"
+                    type="file"
+                    accept=".m3u,.m3u8,text/plain,application/x-mpegURL,audio/x-mpegurl"
+                    onChange={(event) => setPlaylistFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                <p className="wa-base-playlists-meta">Daca alegi fisierul, URL-ul nu se foloseste.</p>
+                {playlistFile ? <p className="wa-base-playlists-meta">Fisier selectat: {playlistFile.name}</p> : null}
                 <div className="wa-row wa-row--actions">
                   <span className="wa-label">Actiuni</span>
                   <div className="wa-actions">
@@ -4528,8 +4819,10 @@ export const App: React.FC = () => {
                       onClick={() => {
                         setPlaylistSourceName('');
                         setPlaylistUrl('');
+                        setPlaylistFile(null);
+                        setPlaylistFileInputVersion((value) => value + 1);
                       }}
-                      disabled={playlistBusy || (!playlistSourceName.trim() && !playlistUrl.trim())}
+                      disabled={playlistBusy || (!playlistSourceName.trim() && !playlistUrl.trim() && !playlistFile)}
                     >
                       Curata campurile
                     </button>
@@ -4540,77 +4833,28 @@ export const App: React.FC = () => {
                 </div>
               </section>
 
-              <section className="wa-base-playlists-panel" style={addMenuItem === 'device' ? undefined : { display: 'none' }}>
-                <h3 className="wa-base-playlists-panel-title">Adauga Device (Pair)</h3>
+              <section className="wa-base-playlists-panel" style={addMenuItem === 'subscriber' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">Adauga Abonat Final</h3>
                 <label className="wa-row">
-                  <span className="wa-label">Abonat</span>
-                  <select
-                    className="wa-input"
-                    value={selectedClientId}
-                    onChange={(event) => setSelectedClientId(event.target.value)}
-                  >
-                    <option value="">Selecteaza abonat</option>
-                    {clients.map((client) => (
-                      <option key={client.id} value={client.id}>
-                        {client.lastName} {client.firstName} ({client.phone})
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="wa-row">
-                  <span className="wa-label">Cod Pair</span>
+                  <span className="wa-label">Cod Pair de la TV</span>
                   <input
                     className="wa-input"
                     value={pairCode}
-                    onChange={(event) => setPairCode(event.target.value.toUpperCase())}
+                    onChange={(event) =>
+                      setPairCode(
+                        event.target.value
+                          .toUpperCase()
+                          .replace(/[^A-Z0-9]/g, '')
+                          .slice(0, 8)
+                      )
+                    }
                     placeholder="A1B2C3"
                     maxLength={8}
                   />
                 </label>
-                <label className="wa-row">
-                  <span className="wa-label">Mod playlist</span>
-                  <select
-                    className="wa-input"
-                    value={pairPlaylistMode}
-                    onChange={(event) => setPairPlaylistMode(event.target.value as DevicePlaylistMode)}
-                  >
-                    <option value="GLOBAL">GLOBAL</option>
-                    <option value="SOURCE">SOURCE</option>
-                    <option value="CUSTOM">CUSTOM</option>
-                  </select>
-                </label>
-                {pairPlaylistMode === 'CUSTOM' ? (
-                  <label className="wa-row">
-                    <span className="wa-label">Custom playlist</span>
-                    <select
-                      className="wa-input"
-                      value={pairCustomPlaylistId}
-                      onChange={(event) => setPairCustomPlaylistId(event.target.value)}
-                    >
-                      <option value="">Selecteaza custom playlist</option>
-                      {customPlaylists.map((playlist) => (
-                        <option key={playlist.id} value={playlist.id}>
-                          {playlist.name} ({playlist.channelsCount} canale)
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                ) : null}
-                <div className="wa-row wa-row--actions">
-                  <span className="wa-label">Actiuni</span>
-                  <div className="wa-actions">
-                    <button type="button" className="wa-btn wa-btn--primary" onClick={() => void confirmPair()}>
-                      Confirma Pair
-                    </button>
-                    <button type="button" className="wa-btn" onClick={() => void loadDevices()} disabled={devicesBusy}>
-                      {devicesBusy ? 'Actualizare...' : 'Refresh devices'}
-                    </button>
-                  </div>
-                </div>
-              </section>
-
-              <section className="wa-base-playlists-panel" style={addMenuItem === 'subscriber' ? undefined : { display: 'none' }}>
-                <h3 className="wa-base-playlists-panel-title">Adauga Abonat Final</h3>
+                <p className="wa-base-playlists-meta">
+                  Primul pas: introdu codul Pair de pe TV (sau deschide linkul din QR). Apoi creezi abonatul.
+                </p>
                 <label className="wa-row">
                   <span className="wa-label">Nume</span>
                   <input
@@ -4656,17 +4900,51 @@ export const App: React.FC = () => {
                     placeholder="1"
                   />
                 </label>
+                <label className="wa-row">
+                  <span className="wa-label">Playlist la Pair</span>
+                  <select
+                    className="wa-input"
+                    value={pairPlaylistSelection}
+                    onChange={(event) => setPairPlaylistSelectionValue(event.target.value)}
+                  >
+                    {playlistSelectionOptions.length === 0 ? (
+                      <option value="">Nu exista playlisturi</option>
+                    ) : (
+                      <>
+                        {sourcePlaylistSelectionOptions.length > 0 ? (
+                          <optgroup label="Surse de baza">
+                            {sourcePlaylistSelectionOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ) : null}
+                        {customPlaylistSelectionOptions.length > 0 ? (
+                          <optgroup label="Constructor custom">
+                            {customPlaylistSelectionOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ) : null}
+                      </>
+                    )}
+                  </select>
+                </label>
                 <div className="wa-row wa-row--actions">
                   <span className="wa-label">Actiuni</span>
                   <div className="wa-actions">
                     <button type="button" className="wa-btn wa-btn--primary" onClick={() => void createClient()}>
-                      Adauga abonat
+                      {pairCode.trim() ? 'Adauga abonat + Pair TV' : 'Adauga abonat'}
                     </button>
                     <button type="button" className="wa-btn" onClick={() => void loadClients()} disabled={clientBusy}>
                       {clientBusy ? 'Actualizare...' : 'Refresh abonati'}
                     </button>
                   </div>
                 </div>
+                <p className="wa-base-playlists-meta">La Pair, device-ul primeste playlistul ales mai sus.</p>
               </section>
             </section>
 
@@ -4723,12 +5001,26 @@ export const App: React.FC = () => {
                     {basePlaylists.map((playlist) => (
                       <article key={playlist.id} className="wa-base-playlists-custom-item">
                         <p className="wa-base-playlists-custom-item-name">{playlist.name}</p>
-                        <p className="wa-base-playlists-custom-item-meta">{playlist.url}</p>
+                        <p className="wa-base-playlists-custom-item-meta">
+                          {playlist.sourceType === 'file'
+                            ? `Fisier: ${playlist.fileName ?? 'uploaded-playlist.m3u8'}`
+                            : playlist.url}
+                        </p>
                         <p className="wa-base-playlists-custom-item-meta">
                           canale: {playlist.channelsCount} | actualizat: {formatDateTime(playlist.cacheUpdatedAt)}
                         </p>
                         <div className="wa-actions">
-                          <button type="button" className="wa-btn" onClick={() => void refreshBasePlaylist(playlist.id, playlist.name)} disabled={playlistBusy}>
+                          <button
+                            type="button"
+                            className="wa-btn"
+                            onClick={() => void refreshBasePlaylist(playlist.id, playlist.name)}
+                            disabled={playlistBusy || playlist.sourceType === 'file'}
+                            title={
+                              playlist.sourceType === 'file'
+                                ? 'Sursa a fost adaugata din fisier. Pentru actualizare, incarca un nou fisier.'
+                                : undefined
+                            }
+                          >
                             Refresh
                           </button>
                           <button type="button" className="wa-btn" onClick={() => void renameBasePlaylist(playlist)} disabled={playlistBusy}>
@@ -5000,130 +5292,40 @@ export const App: React.FC = () => {
               )}
             </section>
 
-            <section className="wa-base-devices" aria-label="Устройства" style={studioSection === 'devices' ? undefined : { display: 'none' }}>
-              <h2 className="wa-base-devices-title">Devices</h2>
-              <p className="wa-base-devices-text">
-                Dispozitive conectate si playlisturile atribuite.
-              </p>
-
-              <div className="wa-base-devices-list">
-                <p className="wa-base-devices-list-title">Clienti si device-uri</p>
-                {deviceGroupsByClient.length === 0 ? (
-                  <p className="wa-empty">Nu exista clienti sau device-uri.</p>
-                ) : (
-                  <div className="wa-base-devices-client-list">
-                    {deviceGroupsByClient.map((group) => {
-                      const isOpen = expandedDeviceClientId === group.id;
-                      return (
-                        <article key={group.id} className={isOpen ? 'wa-base-devices-client is-open' : 'wa-base-devices-client'}>
-                          <button
-                            type="button"
-                            className="wa-base-devices-client-toggle"
-                            onClick={() =>
-                              setExpandedDeviceClientId((current) => (current === group.id ? '' : group.id))
-                            }
-                            aria-expanded={isOpen}
-                          >
-                            <span className="wa-base-devices-client-name">{group.name}</span>
-                            <span className="wa-base-devices-client-meta">
-                              {group.meta ? `${group.meta} | ` : ''}
-                              {group.devices.length} device-uri
-                            </span>
-                          </button>
-
-                          {isOpen ? (
-                            group.devices.length === 0 ? (
-                              <p className="wa-empty">Clientul nu are device-uri conectate.</p>
-                            ) : (
-                              <div className="wa-base-devices-list-grid">
-                                {group.devices.map((device) => {
-                                  const draft = getDevicePlaylistDraft(device);
-                                  const hasDraftChanges =
-                                    draft.mode !== device.playlistMode ||
-                                    (draft.mode === 'CUSTOM'
-                                      ? draft.customPlaylistId !== (device.customPlaylistId ?? '')
-                                      : false);
-
-                                  return (
-                                    <article key={device.id} className="wa-base-devices-item">
-                                      <p className="wa-base-devices-item-name">{device.name}</p>
-                                      <p className="wa-base-devices-item-meta">
-                                        {device.platform} | {device.clientName || 'fara abonat'}
-                                      </p>
-                                      <p className="wa-base-devices-item-meta">
-                                        Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
-                                      </p>
-                                      <p className="wa-base-devices-item-meta">
-                                        Playlist actual: {device.playlistMode}
-                                        {device.customPlaylistName ? ` (${device.customPlaylistName})` : ''}
-                                      </p>
-
-                                      <label className="wa-row">
-                                        <span className="wa-label">Playlist dorit</span>
-                                        <select
-                                          className="wa-input"
-                                          value={getDevicePlaylistSelectionValue(device)}
-                                          onChange={(event) => setDevicePlaylistSelectionValue(device.id, event.target.value)}
-                                        >
-                                          <option value="GLOBAL">GLOBAL (implicit)</option>
-                                          <option value="SOURCE">SOURCE (din sursa)</option>
-                                          {customPlaylists.map((playlist) => (
-                                            <option key={playlist.id} value={`CUSTOM:${playlist.id}`}>
-                                              {playlist.name} ({playlist.channelsCount} canale)
-                                            </option>
-                                          ))}
-                                        </select>
-                                      </label>
-
-                                      <div className="wa-actions">
-                                        <button
-                                          type="button"
-                                          className="wa-btn wa-btn--primary"
-                                          onClick={() => void saveDevicePlaylistAssignment(device)}
-                                          disabled={devicesBusy || !hasDraftChanges}
-                                        >
-                                          Сохранить
-                                        </button>
-                                      </div>
-                                    </article>
-                                  );
-                                })}
-                              </div>
-                            )
-                          ) : null}
-                        </article>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </section>
-
             <section className="wa-base-subscribers" aria-label="Account" style={studioSection === 'account' ? undefined : { display: 'none' }}>
               <div className="wa-base-subscribers-head">
                 <h2 className="wa-base-subscribers-title">Abonati Finali</h2>
               </div>
-              <p className="wa-base-subscribers-text">Abonatii finali sunt separati aici. Adaugarea se face din tabul Adauga.</p>
+              <p className="wa-base-subscribers-text">Aici gestionezi abonatii, device-urile si playlisturile fara blocuri duplicate.</p>
               <div className="wa-actions">
                 <button type="button" className="wa-btn" onClick={() => void loadClients()} disabled={clientBusy}>
                   {clientBusy ? 'Обновление...' : 'Обновить список'}
                 </button>
+                <button type="button" className="wa-btn" onClick={() => void loadDevices()} disabled={devicesBusy}>
+                  {devicesBusy ? 'Actualizare...' : 'Refresh devices'}
+                </button>
               </div>
 
               <div className="wa-base-subscribers-list">
-                <p className="wa-base-subscribers-list-title">Список абонентов (final)</p>
+                <p className="wa-base-subscribers-list-title">Список абонентов + device-uri</p>
                 {clients.length === 0 ? (
                   <p className="wa-empty">Список абонентов пока пуст.</p>
                 ) : (
                   <div className="wa-base-devices-client-list">
                     {clients.map((client) => {
                       const isOpen = expandedFinalClientId === client.id;
-                      const draftDevices = finalClientDeviceDrafts[client.id] ?? String(client.devicesAllowed);
-                      const parsedDraftDevices = Number.parseInt(draftDevices.trim(), 10);
+                      const draft = finalClientDrafts[client.id] ?? toFinalClientDraft(client);
+                      const parsedDraftDevices = Number.parseInt(draft.devicesAllowed.trim(), 10);
                       const isDraftValid = Number.isFinite(parsedDraftDevices) && parsedDraftDevices >= 1;
-                      const hasDraftChanges = isDraftValid
-                        ? parsedDraftDevices !== client.devicesAllowed
-                        : draftDevices.trim() !== String(client.devicesAllowed);
+                      const hasDraftChanges =
+                        draft.firstName !== client.firstName ||
+                        draft.lastName !== client.lastName ||
+                        draft.phone !== client.phone ||
+                        draft.address !== client.address ||
+                        (isDraftValid
+                          ? parsedDraftDevices !== client.devicesAllowed
+                          : draft.devicesAllowed.trim() !== String(client.devicesAllowed));
+                      const clientDevices = pairedDevicesByClient.byClientId.get(client.id) ?? [];
 
                       return (
                         <article key={client.id} className={isOpen ? 'wa-base-devices-client is-open' : 'wa-base-devices-client'}>
@@ -5137,7 +5339,7 @@ export const App: React.FC = () => {
                               {client.lastName} {client.firstName}
                             </span>
                             <span className="wa-base-devices-client-meta">
-                              {client.phone} | device-uri: {client.pairedDevices}/{client.devicesAllowed}
+                              {client.phone} | device-uri: {clientDevices.length}/{client.devicesAllowed}
                             </span>
                           </button>
 
@@ -5145,14 +5347,50 @@ export const App: React.FC = () => {
                             <div className="wa-base-devices-list-grid">
                               <article className="wa-base-devices-item">
                                 <p className="wa-base-devices-item-name">Setari abonat</p>
-                                <p className="wa-base-devices-item-meta">{client.address || 'Adresa lipsa'}</p>
+                                <p className="wa-base-devices-item-meta">Complete: toate campurile din Adauga Abonat</p>
 
                                 <label className="wa-row">
-                                  <span className="wa-label">Cantitate device-uri</span>
+                                  <span className="wa-label">Nume</span>
                                   <input
                                     className="wa-input"
-                                    value={draftDevices}
-                                    onChange={(event) => setFinalClientDevicesDraft(client.id, event.target.value)}
+                                    value={draft.firstName}
+                                    onChange={(event) => setFinalClientDraftField(client.id, 'firstName', event.target.value)}
+                                    placeholder="John"
+                                  />
+                                </label>
+                                <label className="wa-row">
+                                  <span className="wa-label">Prenume</span>
+                                  <input
+                                    className="wa-input"
+                                    value={draft.lastName}
+                                    onChange={(event) => setFinalClientDraftField(client.id, 'lastName', event.target.value)}
+                                    placeholder="Smith"
+                                  />
+                                </label>
+                                <label className="wa-row">
+                                  <span className="wa-label">Telefon</span>
+                                  <input
+                                    className="wa-input"
+                                    value={draft.phone}
+                                    onChange={(event) => setFinalClientDraftField(client.id, 'phone', event.target.value)}
+                                    placeholder="+373 60 123 456"
+                                  />
+                                </label>
+                                <label className="wa-row">
+                                  <span className="wa-label">Adresa</span>
+                                  <input
+                                    className="wa-input"
+                                    value={draft.address}
+                                    onChange={(event) => setFinalClientDraftField(client.id, 'address', event.target.value)}
+                                    placeholder="City, street, house"
+                                  />
+                                </label>
+                                <label className="wa-row">
+                                  <span className="wa-label">Nr. dispozitive</span>
+                                  <input
+                                    className="wa-input"
+                                    value={draft.devicesAllowed}
+                                    onChange={(event) => setFinalClientDraftField(client.id, 'devicesAllowed', event.target.value)}
                                     inputMode="numeric"
                                     placeholder="1"
                                   />
@@ -5162,20 +5400,106 @@ export const App: React.FC = () => {
                                   <button
                                     type="button"
                                     className="wa-btn wa-btn--primary"
-                                    onClick={() => void saveFinalClientDevicesAllowed(client)}
+                                    onClick={() => void saveFinalClient(client)}
                                     disabled={clientBusy || !isDraftValid || !hasDraftChanges}
                                   >
-                                    Salveaza
+                                    Modifica
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="wa-btn wa-btn--ghost"
+                                    onClick={() => void deleteClient(client)}
+                                    disabled={clientBusy}
+                                  >
+                                    Sterge abonat
                                   </button>
                                   <button
                                     type="button"
                                     className="wa-btn"
-                                    onClick={() => resetFinalClientDevicesDraft(client)}
+                                    onClick={() => resetFinalClientDraft(client)}
                                     disabled={clientBusy || !hasDraftChanges}
                                   >
                                     Reset
                                   </button>
                                 </div>
+                              </article>
+
+                              <article className="wa-base-devices-item">
+                                <p className="wa-base-devices-item-name">Device-uri abonat</p>
+                                {clientDevices.length === 0 ? (
+                                  <p className="wa-empty">Acest abonat nu are inca device-uri.</p>
+                                ) : (
+                                  <div className="wa-base-devices-list-grid">
+                                    {clientDevices.map((device) => {
+                                      const draft = getDevicePlaylistDraft(device);
+                                      const hasDraftPlaylistChanges =
+                                        draft.mode !== normalizeDeviceModeForSelection(device.playlistMode) ||
+                                        (draft.mode === 'CUSTOM'
+                                          ? draft.customPlaylistId !== (device.customPlaylistId ?? '')
+                                          : draft.customPlaylistId !== (device.sourcePlaylistId ?? device.customPlaylistId ?? ''));
+
+                                      return (
+                                        <article key={device.id} className="wa-base-devices-item">
+                                          <p className="wa-base-devices-item-name">{device.name}</p>
+                                          <p className="wa-base-devices-item-meta">
+                                            {device.platform} | {device.clientName || 'fara abonat'}
+                                          </p>
+                                          <p className="wa-base-devices-item-meta">
+                                            Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
+                                          </p>
+                                          <p className="wa-base-devices-item-meta">
+                                            Playlist actual: {getDeviceCurrentPlaylistLabel(device)}
+                                          </p>
+
+                                          <label className="wa-row">
+                                            <span className="wa-label">Playlist dorit</span>
+                                            <select
+                                              className="wa-input"
+                                              value={getDevicePlaylistSelectionValue(device)}
+                                              onChange={(event) => setDevicePlaylistSelectionValue(device.id, event.target.value)}
+                                            >
+                                              {playlistSelectionOptions.length === 0 ? (
+                                                <option value="">Nu exista playlisturi</option>
+                                              ) : (
+                                                <>
+                                                  {sourcePlaylistSelectionOptions.length > 0 ? (
+                                                    <optgroup label="Surse de baza">
+                                                      {sourcePlaylistSelectionOptions.map((option) => (
+                                                        <option key={option.value} value={option.value}>
+                                                          {option.label}
+                                                        </option>
+                                                      ))}
+                                                    </optgroup>
+                                                  ) : null}
+                                                  {customPlaylistSelectionOptions.length > 0 ? (
+                                                    <optgroup label="Constructor custom">
+                                                      {customPlaylistSelectionOptions.map((option) => (
+                                                        <option key={option.value} value={option.value}>
+                                                          {option.label}
+                                                        </option>
+                                                      ))}
+                                                    </optgroup>
+                                                  ) : null}
+                                                </>
+                                              )}
+                                            </select>
+                                          </label>
+
+                                          <div className="wa-actions">
+                                            <button
+                                              type="button"
+                                              className="wa-btn wa-btn--primary"
+                                              onClick={() => void saveDevicePlaylistAssignment(device)}
+                                              disabled={devicesBusy || !hasDraftPlaylistChanges}
+                                            >
+                                              Salveaza playlist
+                                            </button>
+                                          </div>
+                                        </article>
+                                      );
+                                    })}
+                                  </div>
+                                )}
                               </article>
                             </div>
                           ) : null}
@@ -5184,6 +5508,22 @@ export const App: React.FC = () => {
                     })}
                   </div>
                 )}
+                {pairedDevicesByClient.unassigned.length > 0 ? (
+                  <div className="wa-base-devices-list">
+                    <p className="wa-base-devices-list-title">Device-uri fara abonat</p>
+                    <div className="wa-base-devices-list-grid">
+                      {pairedDevicesByClient.unassigned.map((device) => (
+                        <article key={device.id} className="wa-base-devices-item">
+                          <p className="wa-base-devices-item-name">{device.name}</p>
+                          <p className="wa-base-devices-item-meta">{device.platform}</p>
+                          <p className="wa-base-devices-item-meta">
+                            Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
+                          </p>
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             </section>
 
@@ -5205,7 +5545,7 @@ export const App: React.FC = () => {
                 </button>
               </div>
               <p className="wa-base-playlists-text">
-                Loguri detaliate pentru fiecare actiune: inregistrare, playlisturi, device-uri si loguri interne.
+                Loguri detaliate pentru fiecare actiune: inregistrare, playlisturi si loguri interne.
               </p>
 
               <div className="wa-playlists-submenu" role="tablist" aria-label="Categorie loguri">
@@ -5224,14 +5564,6 @@ export const App: React.FC = () => {
                   disabled={auditBusy}
                 >
                   Playlists
-                </button>
-                <button
-                  type="button"
-                  className={auditSection === 'devices' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
-                  onClick={() => setAuditSection('devices')}
-                  disabled={auditBusy}
-                >
-                  Devices
                 </button>
                 <button
                   type="button"

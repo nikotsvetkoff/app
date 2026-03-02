@@ -43,7 +43,8 @@ export class AuditInterceptor implements NestInterceptor {
 
     return next.handle().pipe(
       tap((result) => {
-        void this.auditService.log({
+        void this.auditService
+          .log({
           actor,
           action: `${method} ${normalizedPath}`,
           method,
@@ -57,7 +58,8 @@ export class AuditInterceptor implements NestInterceptor {
             durationMs: Date.now() - startedAt,
             result: this.summarizeResult(result)
           }
-        });
+          })
+          .catch(() => undefined);
       }),
       catchError((error: unknown) => {
         const statusCode =
@@ -65,7 +67,8 @@ export class AuditInterceptor implements NestInterceptor {
             ? ((error as { status: number }).status ?? 500)
             : (response.statusCode || 500);
 
-        void this.auditService.log({
+        void this.auditService
+          .log({
           actor,
           action: `${method} ${normalizedPath}`,
           method,
@@ -85,7 +88,8 @@ export class AuditInterceptor implements NestInterceptor {
                   }
                 : { message: 'unknown error' }
           }
-        });
+          })
+          .catch(() => undefined);
 
         return throwError(() => error);
       })

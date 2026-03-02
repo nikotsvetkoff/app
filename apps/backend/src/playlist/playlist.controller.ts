@@ -20,6 +20,7 @@ import { CreateCustomPlaylistDto } from './dto/create-custom-playlist.dto';
 import { UpdateCustomPlaylistDto } from './dto/update-custom-playlist.dto';
 import { SetCustomPlaylistChannelsDto } from './dto/set-custom-playlist-channels.dto';
 import { CreateBasePlaylistDto } from './dto/create-base-playlist.dto';
+import { CreateBasePlaylistFromFileDto } from './dto/create-base-playlist-from-file.dto';
 import { UpdateBasePlaylistDto } from './dto/update-base-playlist.dto';
 
 @ApiTags('playlist')
@@ -42,6 +43,19 @@ export class PlaylistController {
   @Post('sources')
   createSource(@CurrentUser() user: { sub: string }, @Body() dto: CreateBasePlaylistDto) {
     return this.playlistService.createBasePlaylistForUser(user.sub, dto.name, dto.url);
+  }
+
+  @Post('sources/upload')
+  createSourceFromFile(
+    @CurrentUser() user: { sub: string },
+    @Body() dto: CreateBasePlaylistFromFileDto
+  ) {
+    return this.playlistService.createBasePlaylistFromFileForUser(
+      user.sub,
+      dto.name,
+      dto.fileName,
+      dto.content
+    );
   }
 
   @Patch('sources/:id')

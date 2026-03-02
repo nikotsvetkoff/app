@@ -1,4 +1,4 @@
-import type { RemoteAction } from './focus-manager';
+import type { RemoteAction } from './focus-manager.js';
 
 const WEB_KEYMAP: Record<string, RemoteAction> = {
   ArrowUp: 'UP',

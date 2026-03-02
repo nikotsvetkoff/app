@@ -3,6 +3,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 
 const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
@@ -22,6 +23,9 @@ async function bootstrap(): Promise<void> {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true
   });
+
+  app.use(json({ limit: '3mb' }));
+  app.use(urlencoded({ extended: true, limit: '3mb' }));
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -44,6 +48,12 @@ async function bootstrap(): Promise<void> {
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin || corsOriginSet.size === 0) {
+        callback(null, true);
+        return;
+      }
+
+      // Some TV webview runtimes send Origin: null for local packaged apps.
+      if (origin === 'null') {
         callback(null, true);
         return;
       }

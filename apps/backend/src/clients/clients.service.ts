@@ -121,9 +121,25 @@ export class ClientsService {
   async deleteForUser(userId: string, clientId: string): Promise<{ success: true }> {
     await this.assertClientOwner(userId, clientId);
 
-    await this.prisma.client.delete({
-      where: { id: clientId }
-    });
+    await this.prisma.$transaction([
+      this.prisma.device.updateMany({
+        where: {
+          userId,
+          clientId
+        },
+        data: {
+          userId: null,
+          clientId: null,
+          deviceToken: null,
+          pairedAt: null,
+          playlistMode: 'GLOBAL',
+          customPlaylistId: null
+        }
+      }),
+      this.prisma.client.delete({
+        where: { id: clientId }
+      })
+    ]);
 
     return { success: true };
   }

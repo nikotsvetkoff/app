@@ -1,2 +1,2 @@
-export * from './focus-manager';
-export * from './keymap';
+export * from './focus-manager.js';
+export * from './keymap.js';

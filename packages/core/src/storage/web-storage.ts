@@ -1,4 +1,4 @@
-import type { FavoritesHistoryStorage, KeyValueStore } from './interfaces';
+import type { FavoritesHistoryStorage, KeyValueStore } from './interfaces.js';
 import type { PlaybackHistoryItem, PlaybackState } from '../models/playback';
 
 const FAVORITES_KEY = 'iptv:favorites';

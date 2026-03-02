@@ -1,6 +1,6 @@
 import type { Channel } from '../models/channel';
-import { stableHash } from './hash';
-import { parseExtInfAttributes } from './attributes';
+import { stableHash } from './hash.js';
+import { parseExtInfAttributes } from './attributes.js';
 
 interface PendingExtInf {
   name: string;

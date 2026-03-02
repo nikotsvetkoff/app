@@ -1,2 +1,2 @@
-export * from './interfaces';
-export * from './web-storage';
+export * from './interfaces.js';
+export * from './web-storage.js';

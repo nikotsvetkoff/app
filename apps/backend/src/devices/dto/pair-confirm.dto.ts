@@ -14,6 +14,7 @@ export class PairConfirmDto {
     description: 'Optional client owner for this paired device'
   })
   @IsOptional()
+  @IsString({ message: 'clientId must be a string' })
   @IsUUID('4', { message: 'clientId must be UUID v4' })
   clientId?: string;
 
@@ -27,7 +28,7 @@ export class PairConfirmDto {
 
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440000',
-    description: 'Custom playlist id when playlistMode=CUSTOM'
+    description: 'Custom playlist id when playlistMode=CUSTOM or source playlist id when playlistMode=SOURCE'
   })
   @IsOptional()
   @IsUUID('4', { message: 'customPlaylistId must be UUID v4' })

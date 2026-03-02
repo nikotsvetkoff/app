@@ -1,1 +1,1 @@
-export * from './now-next';
+export * from './now-next.js';

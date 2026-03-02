@@ -26,6 +26,9 @@ const COMBINING_MARKS_RE = /[\u0300-\u036f]/g;
 const NON_WORD_RE = /[^\p{L}\p{N}]+/gu;
 const QUALITY_TOKENS = new Set(['uhd', 'fhd', 'hd', 'sd', '4k', 'hevc', 'h265', 'hdr', 'dovi']);
 const LEGACY_SOURCE_PLACEHOLDER_URL = 'https://example.com/playlist.m3u8';
+const UPLOADED_PLAYLIST_URL_PREFIX = 'uploaded-file://';
+const UPLOADED_PLAYLIST_FALLBACK_NAME = 'uploaded-playlist.m3u8';
+const MAX_UPLOADED_PLAYLIST_CONTENT_LENGTH = 2_000_000;
 
 interface OttChannelCandidate {
   tvgId?: string;
@@ -63,6 +66,8 @@ export interface BasePlaylistListItem {
   id: string;
   name: string;
   url: string;
+  sourceType: 'url' | 'file';
+  fileName: string | null;
   channelsCount: number;
   cacheUpdatedAt: string | null;
   lastFetchedAt: string | null;
@@ -276,6 +281,62 @@ export class PlaylistService {
     return this.mapBasePlaylistListItem(created);
   }
 
+  async createBasePlaylistFromFileForUser(
+    userId: string,
+    rawName: string,
+    rawFileName: string,
+    rawContent: string
+  ): Promise<BasePlaylistListItem> {
+    const name = this.normalizeBasePlaylistName(rawName);
+    const fileName = this.normalizeUploadedPlaylistFileName(rawFileName);
+    const content = this.normalizeUploadedPlaylistContent(rawContent);
+    const parsedChannels = parseM3u(content);
+    if (!parsedChannels.length) {
+      throw new BadRequestException('Uploaded playlist is invalid or empty');
+    }
+
+    const enrichedChannels = await this.enrichChannelsFromOttCatalog(userId, parsedChannels);
+    const now = new Date();
+
+    await this.ensureLegacySourceMigrated(userId);
+    await this.assertBasePlaylistNameAvailable(userId, name);
+
+    const created = await this.prisma.basePlaylist.create({
+      data: {
+        userId,
+        name,
+        url: this.buildUploadedPlaylistUrl(fileName),
+        lastFetchedAt: now,
+        lastError: null,
+        cache: {
+          create: {
+            channelsJson: enrichedChannels as unknown as Prisma.InputJsonValue,
+            lastSuccessfulFetchAt: now
+          }
+        }
+      },
+      select: {
+        id: true,
+        name: true,
+        url: true,
+        lastFetchedAt: true,
+        lastError: true,
+        createdAt: true,
+        updatedAt: true,
+        cache: {
+          select: {
+            channelsJson: true,
+            updatedAt: true,
+            lastSuccessfulFetchAt: true
+          }
+        }
+      }
+    });
+
+    await this.syncLegacySourceUrl(userId);
+    return this.mapBasePlaylistListItem(created);
+  }
+
   async updateBasePlaylistForUser(
     userId: string,
     playlistId: string,
@@ -383,6 +444,11 @@ export class PlaylistService {
     const source = await this.getBasePlaylistForUser(userId, playlistId);
     if (!source) {
       throw new NotFoundException('Base playlist not found');
+    }
+    if (this.isUploadedPlaylistUrl(source.url)) {
+      throw new BadRequestException(
+        'This playlist was uploaded from a file. Upload a new file to update it.'
+      );
     }
 
     await this.refreshBasePlaylistCache(userId, source.id, source.url);
@@ -813,10 +879,40 @@ export class PlaylistService {
       throw new NotFoundException('Устройство не привязано');
     }
 
-    const { channels, activeCustomPlaylistId } = await this.getChannelsForUserWithoutCustom(device.userId);
+    let channels: Channel[] = [];
+    let activeCustomPlaylistId: string | null = null;
+    try {
+      const source = await this.getChannelsForUserWithoutCustom(device.userId);
+      channels = source.channels;
+      activeCustomPlaylistId = source.activeCustomPlaylistId;
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) {
+        throw error;
+      }
+      // Device stays paired and opens player even when no source playlist/channels are configured yet.
+      return [];
+    }
     const mode = (device.playlistMode ?? 'GLOBAL').toUpperCase();
 
     if (mode === 'SOURCE') {
+      const sourcePlaylistId = device.customPlaylistId?.trim() ?? '';
+      if (sourcePlaylistId) {
+        const source = await this.getBasePlaylistForUser(device.userId, sourcePlaylistId);
+        if (source) {
+          return this.getChannelsForBasePlaylist(device.userId, source, true);
+        }
+
+        await this.prisma.device.updateMany({
+          where: {
+            id: device.id,
+            customPlaylistId: sourcePlaylistId
+          },
+          data: {
+            customPlaylistId: null
+          }
+        });
+      }
+
       return channels;
     }
 
@@ -1177,6 +1273,61 @@ export class PlaylistService {
     };
   }
 
+  private isUploadedPlaylistUrl(sourceUrl: string): boolean {
+    return sourceUrl.startsWith(UPLOADED_PLAYLIST_URL_PREFIX);
+  }
+
+  private extractUploadedPlaylistFileName(sourceUrl: string): string | null {
+    if (!this.isUploadedPlaylistUrl(sourceUrl)) {
+      return null;
+    }
+
+    const encoded = sourceUrl.slice(UPLOADED_PLAYLIST_URL_PREFIX.length).trim();
+    if (!encoded) {
+      return UPLOADED_PLAYLIST_FALLBACK_NAME;
+    }
+
+    try {
+      const decoded = decodeURIComponent(encoded).trim();
+      return decoded || UPLOADED_PLAYLIST_FALLBACK_NAME;
+    } catch {
+      return encoded || UPLOADED_PLAYLIST_FALLBACK_NAME;
+    }
+  }
+
+  private buildUploadedPlaylistUrl(fileName: string): string {
+    return `${UPLOADED_PLAYLIST_URL_PREFIX}${encodeURIComponent(fileName)}`;
+  }
+
+  private normalizeUploadedPlaylistFileName(rawFileName: string): string {
+    if (typeof rawFileName !== 'string') {
+      throw new BadRequestException('File name is required');
+    }
+
+    const sanitized = rawFileName
+      .trim()
+      .replace(/[<>:"/\\|?*\p{Cc}]/gu, '-')
+      .replace(/\s+/g, ' ')
+      .slice(0, 255)
+      .trim();
+    return sanitized || UPLOADED_PLAYLIST_FALLBACK_NAME;
+  }
+
+  private normalizeUploadedPlaylistContent(rawContent: string): string {
+    if (typeof rawContent !== 'string') {
+      throw new BadRequestException('Playlist content is required');
+    }
+
+    const content = rawContent.replace(/^\uFEFF/, '').trim();
+    if (!content) {
+      throw new BadRequestException('Playlist content is required');
+    }
+    if (content.length > MAX_UPLOADED_PLAYLIST_CONTENT_LENGTH) {
+      throw new BadRequestException('Playlist file is too large');
+    }
+    return content;
+  }
+
   private normalizeBasePlaylistName(rawName: string): string {
     const name = rawName.trim();
     if (!name) {
@@ -1312,10 +1463,13 @@ export class PlaylistService {
   }
 
   private mapBasePlaylistListItem(row: BasePlaylistWithCacheRow): BasePlaylistListItem {
+    const uploadedFileName = this.extractUploadedPlaylistFileName(row.url);
     return {
       id: row.id,
       name: row.name,
       url: row.url,
+      sourceType: uploadedFileName ? 'file' : 'url',
+      fileName: uploadedFileName,
       channelsCount: parseChannelsJson(row.cache?.channelsJson).length,
       cacheUpdatedAt: row.cache?.updatedAt?.toISOString() ?? null,
       lastFetchedAt: row.lastFetchedAt?.toISOString() ?? null,

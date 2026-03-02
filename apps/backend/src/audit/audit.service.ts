@@ -60,7 +60,24 @@ export class AuditService {
           : undefined
     };
 
-    await this.prisma.auditLog.create({ data });
+    try {
+      await this.prisma.auditLog.create({ data });
+      return;
+    } catch (error) {
+      const userConnectMissing =
+        error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025';
+      if (!userConnectMissing) {
+        throw error;
+      }
+    }
+
+    // If actor user was deleted, keep the audit row without relation instead of failing.
+    await this.prisma.auditLog.create({
+      data: {
+        ...data,
+        user: undefined
+      }
+    });
   }
 
   async listRecent(limit = 200, options: AuditListOptions = {}): Promise<

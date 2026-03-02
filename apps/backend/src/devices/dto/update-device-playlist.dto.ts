@@ -11,7 +11,7 @@ export class UpdateDevicePlaylistDto {
 
   @ApiPropertyOptional({
     example: '550e8400-e29b-41d4-a716-446655440000',
-    description: 'Required when playlistMode=CUSTOM'
+    description: 'Custom playlist id when playlistMode=CUSTOM or source playlist id when playlistMode=SOURCE'
   })
   @IsOptional()
   @IsUUID('4', { message: 'customPlaylistId must be UUID v4' })

@@ -12,14 +12,14 @@ const prismaBin = path.join(
   process.platform === 'win32' ? 'prisma.cmd' : 'prisma'
 );
 const prismaClientPackagePath = require.resolve('@prisma/client/package.json', { paths: [backendRoot] });
-const prismaClientDts = path.resolve(
+const prismaClientRuntimeDir = path.resolve(
   path.dirname(prismaClientPackagePath),
   '..',
   '..',
   '.prisma',
-  'client',
-  'index.d.ts'
+  'client'
 );
+const prismaClientDts = path.resolve(prismaClientRuntimeDir, 'index.d.ts');
 
 const sleep = (ms) => {
   const shared = new SharedArrayBuffer(4);
@@ -61,6 +61,18 @@ const looksLikeWindowsEngineLock = (output) =>
     output.includes('query_engine-windows') ||
     output.includes('permission denied'));
 
+const hasPrismaQueryEngineBinary = () => {
+  if (!fs.existsSync(prismaClientRuntimeDir)) {
+    return false;
+  }
+
+  try {
+    return fs.readdirSync(prismaClientRuntimeDir).some((entry) => /^(query_engine|libquery_engine)/i.test(entry));
+  } catch {
+    return false;
+  }
+};
+
 let lastOutput = '';
 for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
   console.log(`[build] prisma generate attempt ${attempt}/${maxAttempts}`);
@@ -79,13 +91,14 @@ for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
 
   if (attempt === maxAttempts) {
     if (hasGeneratedClient) {
-      console.warn('[build] prisma generate failed due to Windows file lock, trying --no-engine');
-      const fallback = runPrismaGenerate(['--no-engine']);
-      if (fallback.status === 0) {
+      if (hasPrismaQueryEngineBinary()) {
+        console.warn('[build] prisma generate failed due to Windows file lock, using existing generated client');
         process.exit(0);
       }
-      console.warn('[build] --no-engine fallback failed, using existing generated client');
-      process.exit(0);
+
+      console.error('[build] prisma client exists but query engine binary is missing');
+      console.error('[build] stop running backend processes and run: corepack pnpm --filter @iptv/backend exec prisma generate');
+      process.exit(1);
     }
     break;
   }

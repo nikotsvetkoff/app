@@ -1,1 +1,1 @@
-export * from './player-adapter';
+export * from './player-adapter.js';

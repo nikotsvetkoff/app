@@ -36,6 +36,8 @@ export interface PairedDeviceListItem {
   playlistMode: DevicePlaylistMode;
   customPlaylistId: string | null;
   customPlaylistName: string | null;
+  sourcePlaylistId: string | null;
+  sourcePlaylistName: string | null;
 }
 
 @Injectable()
@@ -103,11 +105,13 @@ export class DevicesService {
       throw new ConflictException('Pairing code is already used');
     }
 
-    let assignedClientId: string | null = null;
-    if (clientId) {
+    const normalizedClientId = clientId?.trim();
+    let pairedClientId: string | null = null;
+
+    if (normalizedClientId) {
       const client = await this.prisma.client.findFirst({
         where: {
-          id: clientId,
+          id: normalizedClientId,
           userId
         },
         include: {
@@ -135,7 +139,7 @@ export class DevicesService {
         );
       }
 
-      assignedClientId = client.id;
+      pairedClientId = client.id;
     }
 
     const assignment = await this.resolveDevicePlaylistAssignment(
@@ -152,7 +156,7 @@ export class DevicesService {
           userId,
           pairedAt: new Date(),
           deviceToken,
-          clientId: assignedClientId,
+          clientId: pairedClientId,
           playlistMode: assignment.playlistMode,
           customPlaylistId: assignment.customPlaylistId
         }
@@ -210,7 +214,7 @@ export class DevicesService {
   }
 
   async listPairedDevicesForUser(userId: string): Promise<PairedDeviceListItem[]> {
-    const [devices, customPlaylists] = await Promise.all([
+    const [devices, customPlaylists, basePlaylists] = await Promise.all([
       this.prisma.device.findMany({
         where: {
           userId,
@@ -242,14 +246,24 @@ export class DevicesService {
           id: true,
           name: true
         }
+      }),
+      this.prisma.basePlaylist.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          name: true
+        }
       })
     ]);
 
     const customNameById = new Map(customPlaylists.map((row) => [row.id, row.name] as const));
+    const sourceNameById = new Map(basePlaylists.map((row) => [row.id, row.name] as const));
     return devices.map((device) => {
       const mode = this.normalizeDevicePlaylistMode(device.playlistMode);
       const customId = mode === 'CUSTOM' ? device.customPlaylistId : null;
       const customName = customId ? (customNameById.get(customId) ?? null) : null;
+      const sourceId = mode === 'SOURCE' ? device.customPlaylistId : null;
+      const sourceName = sourceId ? (sourceNameById.get(sourceId) ?? null) : null;
       const clientName = device.client
         ? `${device.client.lastName} ${device.client.firstName}`.trim()
         : null;
@@ -264,7 +278,9 @@ export class DevicesService {
         clientName,
         playlistMode: mode,
         customPlaylistId: customId,
-        customPlaylistName: customName
+        customPlaylistName: customName,
+        sourcePlaylistId: sourceId,
+        sourcePlaylistName: sourceName
       };
     });
   }
@@ -294,9 +310,7 @@ export class DevicesService {
       throw new NotFoundException('Device not found');
     }
 
-    const effectiveMode =
-      playlistMode ??
-      (customPlaylistId !== undefined ? 'CUSTOM' : this.normalizeDevicePlaylistMode(device.playlistMode));
+    const effectiveMode = playlistMode ?? this.normalizeDevicePlaylistMode(device.playlistMode);
     const effectiveCustomPlaylistId =
       customPlaylistId !== undefined ? customPlaylistId : (device.customPlaylistId ?? undefined);
 
@@ -334,10 +348,38 @@ export class DevicesService {
   ): Promise<DevicePlaylistAssignment> {
     const mode = this.normalizeDevicePlaylistMode(playlistMode);
 
-    if (mode === 'GLOBAL' || mode === 'SOURCE') {
+    if (mode === 'GLOBAL') {
       return {
-        playlistMode: mode,
+        playlistMode: 'GLOBAL',
         customPlaylistId: null
+      };
+    }
+
+    if (mode === 'SOURCE') {
+      const sourceId = customPlaylistId?.trim();
+      if (!sourceId) {
+        return {
+          playlistMode: 'SOURCE',
+          customPlaylistId: null
+        };
+      }
+
+      const exists = await this.prisma.basePlaylist.findFirst({
+        where: {
+          id: sourceId,
+          userId
+        },
+        select: {
+          id: true
+        }
+      });
+      if (!exists) {
+        throw new NotFoundException('Source playlist not found');
+      }
+
+      return {
+        playlistMode: 'SOURCE',
+        customPlaylistId: sourceId
       };
     }
 

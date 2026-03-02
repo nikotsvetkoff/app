@@ -1,4 +1,4 @@
-import type { Platform } from './channel';
+import type { Platform } from './channel.js';
 
 export interface Device {
   id: string;
