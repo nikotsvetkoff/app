@@ -41,6 +41,7 @@ interface ImportConfigShape {
     phone: string;
     address: string;
     devicesAllowed: number;
+    sourcePlaylistNames: string[];
   }>;
   activeCustomPlaylistName: string | null;
 }
@@ -362,7 +363,8 @@ export class SystemService implements OnModuleInit, OnModuleDestroy {
           lastName: true,
           phone: true,
           address: true,
-          devicesAllowed: true
+          devicesAllowed: true,
+          sourcePlaylistIds: true
         }
       }),
       this.prisma.playlistSource.findUnique({
@@ -394,7 +396,16 @@ export class SystemService implements OnModuleInit, OnModuleDestroy {
           .filter((name): name is string => Boolean(name)),
         isActive: playlist.id === sourceSettings?.activeCustomPlaylistId
       })),
-      clients
+      clients: clients.map((client) => ({
+        firstName: client.firstName,
+        lastName: client.lastName,
+        phone: client.phone,
+        address: client.address,
+        devicesAllowed: client.devicesAllowed,
+        sourcePlaylistNames: this.asStringArray(client.sourcePlaylistIds)
+          .map((id) => baseNameById.get(id))
+          .filter((name): name is string => Boolean(name))
+      }))
     };
   }
 
@@ -531,6 +542,9 @@ export class SystemService implements OnModuleInit, OnModuleDestroy {
         if (!replace && existingClientPhones.has(phone)) {
           continue;
         }
+        const sourcePlaylistIds = client.sourcePlaylistNames
+          .map((sourceName) => baseIdByName.get(sourceName.toLowerCase()))
+          .filter((id): id is string => Boolean(id));
 
         await transaction.client.create({
           data: {
@@ -539,7 +553,8 @@ export class SystemService implements OnModuleInit, OnModuleDestroy {
             lastName: client.lastName,
             phone,
             address: client.address,
-            devicesAllowed: client.devicesAllowed
+            devicesAllowed: client.devicesAllowed,
+            sourcePlaylistIds: sourcePlaylistIds as unknown as Prisma.InputJsonValue
           }
         });
         createdClients += 1;
@@ -845,7 +860,8 @@ export class SystemService implements OnModuleInit, OnModuleDestroy {
       lastName: this.requiredString(item.lastName, 'clients[].lastName'),
       phone: this.requiredString(item.phone, 'clients[].phone'),
       address: this.requiredString(item.address, 'clients[].address'),
-      devicesAllowed: this.positiveInt(item.devicesAllowed, 'clients[].devicesAllowed')
+      devicesAllowed: this.positiveInt(item.devicesAllowed, 'clients[].devicesAllowed'),
+      sourcePlaylistNames: this.asStringArray(item.sourcePlaylistNames)
     }));
     if (clients.length > 10000) {
       throw new BadRequestException('Too many clients');
@@ -855,6 +871,13 @@ export class SystemService implements OnModuleInit, OnModuleDestroy {
       const phoneKey = client.phone.trim();
       if (phones.has(phoneKey)) {
         throw new BadRequestException(`Duplicate client phone: ${client.phone}`);
+      }
+      for (const sourceName of client.sourcePlaylistNames) {
+        if (!baseNames.has(sourceName.toLowerCase())) {
+          throw new BadRequestException(
+            `Unknown source playlist reference in client ${client.phone}: ${sourceName}`
+          );
+        }
       }
       phones.add(phoneKey);
     }

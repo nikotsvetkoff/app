@@ -50,6 +50,22 @@ export class DevicesController {
     return this.devicesService.getPairingStatus((code ?? '').toUpperCase());
   }
 
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('webos/restore-token')
+  restoreWebOsToken(@Query('mac') macAddress: string) {
+    return this.devicesService.restoreWebOsTokenByMac(macAddress);
+  }
+
+  @Throttle({ default: { limit: 30, ttl: 60000 } })
+  @Get('restore-token')
+  restoreToken(
+    @Query('platform') platform: string,
+    @Query('fingerprint') fingerprint?: string,
+    @Query('name') deviceName?: string
+  ) {
+    return this.devicesService.restoreTokenByFingerprint(platform, fingerprint, deviceName);
+  }
+
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard)
   @Get()

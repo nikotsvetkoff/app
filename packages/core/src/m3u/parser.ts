@@ -62,6 +62,17 @@ export const parseM3u = (content: string): Channel[] => {
     const groupFromExtGrp = pendingExtGrp?.trim() || undefined;
     const groupFromAttr = attrs['group-title']?.trim() || undefined;
     const group = groupFromExtGrp || groupFromAttr;
+    const catchup = attrs['catchup']?.trim() || attrs['catchup-type']?.trim() || undefined;
+    const catchupDaysRaw = attrs['catchup-days']?.trim() || attrs['timeshift']?.trim() || '';
+    const catchupDaysParsed = catchupDaysRaw ? Number.parseInt(catchupDaysRaw, 10) : Number.NaN;
+    const catchupDays = Number.isFinite(catchupDaysParsed) && catchupDaysParsed > 0 ? catchupDaysParsed : undefined;
+    const catchupSource = attrs['catchup-source']?.trim() || attrs['timeshift-url']?.trim() || undefined;
+    const correctionRaw = attrs['catchup-correction']?.trim() || '';
+    const catchupCorrectionParsed = correctionRaw ? Number.parseFloat(correctionRaw) : Number.NaN;
+    const catchupCorrection =
+      Number.isFinite(catchupCorrectionParsed) && catchupCorrectionParsed !== 0
+        ? catchupCorrectionParsed
+        : undefined;
 
     channels.push({
       id: buildChannelId(tvgId, name, line),
@@ -69,6 +80,10 @@ export const parseM3u = (content: string): Channel[] => {
       logo: attrs['tvg-logo']?.trim() || undefined,
       group,
       tvgId,
+      catchup,
+      catchupDays,
+      catchupSource,
+      catchupCorrection,
       url: line
     });
 

@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
-import { fetchTextWithRetry } from '../common/http.util';
+import { fetchTextWithRetry, fetchWithRetry } from '../common/http.util';
 import {
   parseChannelsTable,
   parseProgramsTable,
@@ -43,6 +43,17 @@ export class OttCatalogService {
   private readonly channelsTtlMs: number;
   private readonly programsTtlMs: number;
   private readonly defaultProgramSyncDelayMs: number;
+  private readonly providerHealthCheckEnabled: boolean;
+  private readonly providerHealthCheckTimeoutMs: number;
+  private readonly providerHealthCheckRetries: number;
+  private readonly providerHealthCheckConcurrency: number;
+  private readonly providerChannelsWarmupEnabled: boolean;
+  private readonly fetchTimeoutMs: number;
+  private readonly fetchRetries: number;
+  private readonly fetchBackoffMs: number;
+  private readonly failedFetchCooldownMs: number;
+  private readonly programsMaxConsecutiveFailures: number;
+  private readonly failedFetchUntilByUrl = new Map<string, number>();
 
   constructor(
     @Inject(PrismaService) private readonly prisma: PrismaService,
@@ -52,6 +63,37 @@ export class OttCatalogService {
     this.channelsTtlMs = Number(this.configService.get('OTT_CHANNELS_CACHE_TTL_SEC') ?? 6 * 3600) * 1000;
     this.programsTtlMs = Number(this.configService.get('OTT_PROGRAMS_CACHE_TTL_SEC') ?? 2 * 3600) * 1000;
     this.defaultProgramSyncDelayMs = Number(this.configService.get('OTT_PROGRAMS_SYNC_DELAY_MS') ?? 250);
+    this.providerHealthCheckEnabled =
+      String(this.configService.get('OTT_PROVIDER_HEALTH_CHECK_ENABLED') ?? 'true')
+        .trim()
+        .toLowerCase() === 'true';
+    this.providerHealthCheckTimeoutMs = Math.max(
+      3000,
+      Number(this.configService.get('OTT_PROVIDER_HEALTH_CHECK_TIMEOUT_MS') ?? 20000)
+    );
+    this.providerHealthCheckRetries = Math.max(
+      0,
+      Number(this.configService.get('OTT_PROVIDER_HEALTH_CHECK_RETRIES') ?? 2)
+    );
+    this.providerHealthCheckConcurrency = Math.max(
+      1,
+      Number(this.configService.get('OTT_PROVIDER_HEALTH_CHECK_CONCURRENCY') ?? 2)
+    );
+    this.providerChannelsWarmupEnabled =
+      String(this.configService.get('OTT_PROVIDER_CHANNELS_WARMUP_ENABLED') ?? 'true')
+        .trim()
+        .toLowerCase() === 'true';
+    this.fetchTimeoutMs = Math.max(3000, Number(this.configService.get('OTT_FETCH_TIMEOUT_MS') ?? 20000));
+    this.fetchRetries = Math.max(1, Number(this.configService.get('OTT_FETCH_RETRIES') ?? 4));
+    this.fetchBackoffMs = Math.max(300, Number(this.configService.get('OTT_FETCH_BACKOFF_MS') ?? 1000));
+    this.failedFetchCooldownMs = Math.max(
+      10000,
+      Number(this.configService.get('OTT_FETCH_FAILURE_COOLDOWN_MS') ?? 90000)
+    );
+    this.programsMaxConsecutiveFailures = Math.max(
+      1,
+      Number(this.configService.get('OTT_PROGRAMS_MAX_CONSECUTIVE_FAILURES') ?? 6)
+    );
   }
 
   async listProviders(userId: string) {
@@ -89,6 +131,9 @@ export class OttCatalogService {
     await this.tryAutoSyncChannels(provider.id, userId);
 
     const normalizedSearch = search.trim();
+    const normalizedLimit = Number.isFinite(Number(limit))
+      ? Math.max(1, Math.min(2000, Number(limit)))
+      : 200;
     const rows = await this.prisma.ottChannel.findMany({
       where: {
         providerId: provider.id,
@@ -102,7 +147,7 @@ export class OttCatalogService {
           : {})
       },
       orderBy: [{ displayName: 'asc' }],
-      take: limit
+      take: normalizedLimit
     });
 
     return {
@@ -131,10 +176,13 @@ export class OttCatalogService {
     const channel = await this.requireChannel(userId, channelId);
     await this.tryAutoSyncPrograms(channel.id, userId);
 
+    const normalizedLimit = Number.isFinite(Number(limit))
+      ? Math.max(1, Math.min(5000, Number(limit)))
+      : 250;
     const rows = await this.prisma.ottProgram.findMany({
       where: { channelId: channel.id },
       orderBy: [{ sequence: 'asc' }],
-      take: limit
+      take: normalizedLimit
     });
 
     return {
@@ -173,11 +221,72 @@ export class OttCatalogService {
       };
     }
 
-    const html = await this.fetchOttHtml('/');
-    const providers = parseProvidersTable(html);
+    let parsedProviders: ParsedProviderRow[];
+    try {
+      const html = await this.fetchOttHtml('/');
+      parsedProviders = parseProvidersTable(html);
+    } catch (error) {
+      const existingTotal = await this.prisma.ottProvider.count({
+        where: { userId }
+      });
+      if (existingTotal > 0) {
+        this.logger.warn(
+          `Providers root fetch failed; keeping existing provider list (${existingTotal})`
+        );
+        return {
+          synced: false,
+          total: existingTotal
+        };
+      }
+      this.logger.warn('Providers root fetch failed and no cached providers exist; returning empty list');
+      return {
+        synced: false,
+        total: 0
+      };
+    }
 
+    if (parsedProviders.length === 0) {
+      const existingTotal = await this.prisma.ottProvider.count({
+        where: { userId }
+      });
+      if (existingTotal > 0) {
+        this.logger.warn('Providers page parsed as empty; keeping existing provider list');
+        return {
+          synced: false,
+          total: existingTotal
+        };
+      }
+      return {
+        synced: false,
+        total: 0
+      };
+    }
+
+    const providers = await this.filterHealthyProviders(parsedProviders);
     if (providers.length === 0) {
-      throw new BadRequestException('Не удалось разобрать список провайдеров из ott-play');
+      const existingTotal = await this.prisma.ottProvider.count({
+        where: { userId }
+      });
+      if (existingTotal > 0) {
+        this.logger.warn(
+          'No healthy providers detected in this sync window; keeping existing provider list'
+        );
+        return {
+          synced: false,
+          total: existingTotal
+        };
+      }
+      this.logger.warn('No healthy providers detected and no cached providers exist; returning empty list');
+      return {
+        synced: false,
+        total: 0
+      };
+    }
+
+    if (providers.length < parsedProviders.length) {
+      this.logger.warn(
+        `OTT providers filtered by health-check: ${providers.length}/${parsedProviders.length} available`
+      );
     }
 
     const keys = providers.map((provider) => provider.key);
@@ -206,12 +315,54 @@ export class OttCatalogService {
       })
     ]);
 
+    let total = providers.length;
+    if (this.providerChannelsWarmupEnabled && providers.length > 0) {
+      const savedProviders = await this.prisma.ottProvider.findMany({
+        where: {
+          userId,
+          key: {
+            in: keys
+          }
+        },
+        select: {
+          id: true,
+          key: true
+        }
+      });
+
+      const keysWithChannels = new Set<string>();
+      for (const savedProvider of savedProviders) {
+        try {
+          const channelsResult = await this.syncProviderChannels(userId, savedProvider.id, true);
+          if (channelsResult.total > 0) {
+            keysWithChannels.add(savedProvider.key);
+          }
+        } catch (error) {
+          this.logger.warn(
+            `Channels warm-up failed for provider ${savedProvider.key}: ${error instanceof Error ? error.message : String(error)}`
+          );
+        }
+      }
+
+      if (keysWithChannels.size > 0 && keysWithChannels.size < keys.length) {
+        await this.prisma.ottProvider.deleteMany({
+          where: {
+            userId,
+            key: {
+              notIn: [...keysWithChannels]
+            }
+          }
+        });
+        total = keysWithChannels.size;
+        this.logger.warn(`OTT providers filtered by channels warm-up: ${total}/${providers.length} retained`);
+      }
+    }
+
     return {
       synced: true,
-      total: providers.length
+      total
     };
   }
-
   async syncProviderChannels(userId: string, providerId: string, force = false): Promise<SyncResult> {
     const provider = await this.requireProvider(userId, providerId);
     const latestChannel = await this.prisma.ottChannel.findFirst({
@@ -236,10 +387,56 @@ export class OttCatalogService {
       };
     }
 
-    const html = await this.fetchOttHtml(provider.channelsPath);
-    const parsed = parseChannelsTable(html);
+    let parsed: ReturnType<typeof parseChannelsTable>;
+    try {
+      const html = await this.fetchOttHtml(provider.channelsPath);
+      parsed = parseChannelsTable(html);
+    } catch (error) {
+      const cachedCount = await this.prisma.ottChannel.count({
+        where: {
+          providerId: provider.id
+        }
+      });
+      if (cachedCount > 0) {
+        this.logger.warn(
+          `Provider ${provider.key} refresh skipped due remote error; using cached channels (${cachedCount})`
+        );
+        return {
+          synced: false,
+          total: cachedCount
+        };
+      }
+      this.logger.warn(
+        `Provider ${provider.key} refresh failed and no cached channels exist; returning empty set`
+      );
+      return {
+        synced: false,
+        total: 0
+      };
+    }
+
     if (parsed.channels.length === 0) {
-      throw new BadRequestException(`Не удалось получить список каналов провайдера ${provider.key}`);
+      const cachedCount = await this.prisma.ottChannel.count({
+        where: {
+          providerId: provider.id
+        }
+      });
+      if (cachedCount > 0) {
+        this.logger.warn(
+          `Provider ${provider.key} returned empty channels list; using cached channels (${cachedCount})`
+        );
+        return {
+          synced: false,
+          total: cachedCount
+        };
+      }
+      this.logger.warn(
+        `Provider ${provider.key} returned empty channels list and no cache exists; returning empty set`
+      );
+      return {
+        synced: false,
+        total: 0
+      };
     }
 
     const now = new Date();
@@ -274,11 +471,13 @@ export class OttCatalogService {
       total: channelRows.length
     };
   }
-
   async syncChannelPrograms(userId: string, channelId: string, force = false): Promise<SyncResult> {
     const channel = await this.requireChannel(userId, channelId);
     if (!channel.epgPath) {
-      throw new BadRequestException('Для этого канала отсутствует ссылка на EPG');
+      return {
+        synced: false,
+        total: channel.programCount
+      };
     }
 
     if (
@@ -293,8 +492,28 @@ export class OttCatalogService {
       };
     }
 
-    const html = await this.fetchOttHtml(channel.epgPath);
-    const parsed = parseProgramsTable(html);
+    let parsed: ReturnType<typeof parseProgramsTable>;
+    try {
+      const html = await this.fetchOttHtml(channel.epgPath);
+      parsed = parseProgramsTable(html);
+    } catch (error) {
+      if (channel.programCount > 0) {
+        this.logger.warn(
+          `Programs refresh skipped for ${channel.displayName}; using cached programs (${channel.programCount})`
+        );
+        return {
+          synced: false,
+          total: channel.programCount
+        };
+      }
+      this.logger.warn(
+        `Programs refresh failed for ${channel.displayName} and no cache exists; returning empty set`
+      );
+      return {
+        synced: false,
+        total: 0
+      };
+    }
 
     const now = new Date();
     const records = parsed.programs.map((program) => this.mapProgramCreate(userId, channel.providerId, channel.id, program));
@@ -364,10 +583,13 @@ export class OttCatalogService {
     let synced = 0;
     let skipped = 0;
     let failed = 0;
+    let processed = 0;
+    let consecutiveFailures = 0;
     const errors: string[] = [];
 
     for (let index = 0; index < channels.length; index += 1) {
       const channel = channels[index];
+      processed += 1;
       try {
         const result = await this.syncChannelPrograms(userId, channel.id, force);
         if (result.synced) {
@@ -375,13 +597,21 @@ export class OttCatalogService {
         } else {
           skipped += 1;
         }
+        consecutiveFailures = 0;
       } catch (error) {
         failed += 1;
+        consecutiveFailures += 1;
         const message =
           error instanceof Error
             ? error.message
             : `Ошибка загрузки программ для канала ${channel.displayName}`;
         errors.push(`${channel.displayName}: ${message}`);
+        if (consecutiveFailures >= this.programsMaxConsecutiveFailures) {
+          errors.push(
+            `Stopped after ${consecutiveFailures} consecutive channel program failures for this provider`
+          );
+          break;
+        }
       }
 
       if (index < channels.length - 1 && delayMs > 0) {
@@ -391,7 +621,7 @@ export class OttCatalogService {
 
     return {
       providerId,
-      processedChannels: channels.length,
+      processedChannels: processed,
       syncedChannels: synced,
       skippedChannels: skipped,
       failedChannels: failed,
@@ -525,51 +755,26 @@ export class OttCatalogService {
   }
 
   private async tryAutoSyncProviders(userId: string): Promise<void> {
-    const existingCount = await this.prisma.ottProvider.count({ where: { userId } });
     try {
       await this.syncProviders(userId, false);
     } catch (error) {
-      if (existingCount > 0) {
-        this.logger.warn(`Providers auto-sync failed: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-      throw error;
+      this.logger.warn(`Providers auto-sync failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   private async tryAutoSyncChannels(providerId: string, userId: string): Promise<void> {
-    const existingCount = await this.prisma.ottChannel.count({
-      where: {
-        providerId,
-        userId
-      }
-    });
     try {
       await this.syncProviderChannels(userId, providerId, false);
     } catch (error) {
-      if (existingCount > 0) {
-        this.logger.warn(`Channels auto-sync failed: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-      throw error;
+      this.logger.warn(`Channels auto-sync failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   private async tryAutoSyncPrograms(channelId: string, userId: string): Promise<void> {
-    const existingCount = await this.prisma.ottProgram.count({
-      where: {
-        channelId,
-        userId
-      }
-    });
     try {
       await this.syncChannelPrograms(userId, channelId, false);
     } catch (error) {
-      if (existingCount > 0) {
-        this.logger.warn(`Programs auto-sync failed: ${error instanceof Error ? error.message : String(error)}`);
-        return;
-      }
-      throw error;
+      this.logger.warn(`Programs auto-sync failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -674,22 +879,127 @@ export class OttCatalogService {
     }
   }
 
+  private async filterHealthyProviders(providers: ParsedProviderRow[]): Promise<ParsedProviderRow[]> {
+    if (!this.providerHealthCheckEnabled || providers.length === 0) {
+      return providers;
+    }
+
+    const keysToKeep = new Set<string>();
+    const queue = [...providers];
+    const workerCount = Math.min(this.providerHealthCheckConcurrency, queue.length);
+
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (queue.length > 0) {
+        const next = queue.shift();
+        if (!next) {
+          break;
+        }
+
+        if (await this.isProviderHealthy(next)) {
+          keysToKeep.add(next.key);
+        }
+      }
+    });
+
+    await Promise.all(workers);
+    return providers.filter((provider) => keysToKeep.has(provider.key));
+  }
+
+  private async isProviderHealthy(provider: ParsedProviderRow): Promise<boolean> {
+    const targetUrl = this.normalizeToAbsoluteUrl(provider.channelsPath);
+    if (!targetUrl) {
+      return false;
+    }
+
+    try {
+      const response = await fetchWithRetry(targetUrl, {
+        timeoutMs: this.providerHealthCheckTimeoutMs,
+        retries: this.providerHealthCheckRetries,
+        backoffMs: 700,
+        headers: OTT_BROWSER_HEADERS
+      });
+      const html = await response.text();
+      const parsed = parseChannelsTable(html);
+      return parsed.channels.length > 0;
+    } catch (error) {
+      this.logger.warn(
+        `OTT provider health-check failed for ${provider.key} (${targetUrl}): ${error instanceof Error ? error.message : String(error)}`
+      );
+      return false;
+    }
+  }
+
   private async fetchOttHtml(pathOrUrl: string): Promise<string> {
     const targetUrl = this.normalizeToAbsoluteUrl(pathOrUrl);
     if (!targetUrl) {
       throw new BadRequestException('Некорректная ссылка для загрузки OTT каталога');
     }
 
+    if (this.isFailedFetchCoolingDown(targetUrl)) {
+      throw new ServiceUnavailableException('Удаленный источник временно недоступен');
+    }
+
     try {
-      return await fetchTextWithRetry(targetUrl, {
-        timeoutMs: 20000,
-        retries: 2,
-        backoffMs: 1000,
+      const html = await fetchTextWithRetry(targetUrl, {
+        timeoutMs: this.fetchTimeoutMs,
+        retries: this.fetchRetries,
+        backoffMs: this.fetchBackoffMs,
         headers: OTT_BROWSER_HEADERS
       });
+      this.failedFetchUntilByUrl.delete(targetUrl);
+      return html;
     } catch (error) {
+      this.registerFailedFetch(targetUrl, error);
       this.logger.warn(`OTT fetch failed for ${targetUrl}: ${error instanceof Error ? error.message : String(error)}`);
       throw new ServiceUnavailableException('Не удалось загрузить данные с epg.ott-play.com');
     }
+  }
+
+  private isFailedFetchCoolingDown(targetUrl: string): boolean {
+    const retryAt = this.failedFetchUntilByUrl.get(targetUrl);
+    if (!retryAt) {
+      return false;
+    }
+
+    if (retryAt <= Date.now()) {
+      this.failedFetchUntilByUrl.delete(targetUrl);
+      return false;
+    }
+
+    return true;
+  }
+
+  private registerFailedFetch(targetUrl: string, error: unknown): void {
+    const statusCode = this.extractHttpStatusCode(error);
+    const cooldownMs =
+      statusCode === 503 || statusCode === 504
+        ? this.failedFetchCooldownMs
+        : Math.min(this.failedFetchCooldownMs, 20000);
+    this.failedFetchUntilByUrl.set(targetUrl, Date.now() + cooldownMs);
+
+    if (this.failedFetchUntilByUrl.size <= 2000) {
+      return;
+    }
+
+    const now = Date.now();
+    for (const [url, retryAt] of this.failedFetchUntilByUrl.entries()) {
+      if (retryAt <= now) {
+        this.failedFetchUntilByUrl.delete(url);
+      }
+    }
+  }
+
+  private extractHttpStatusCode(error: unknown): number | null {
+    if (!(error instanceof Error)) {
+      return null;
+    }
+
+    const match = error.message.match(/HTTP\s+(\d{3})/i);
+    if (!match) {
+      return null;
+    }
+
+    const statusCode = Number(match[1]);
+    return Number.isFinite(statusCode) ? statusCode : null;
   }
 }

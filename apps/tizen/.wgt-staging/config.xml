@@ -1,8 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" id="com.example.iptv.tizen" version="2.0.9" viewmodes="maximized">
-  <tizen:application id="com.example.iptv.tizen" package="com.example.iptv" required_version="5.5" xmlns:tizen="http://tizen.org/ns/widgets" />
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/iptv" version="2.0.9" viewmodes="maximized">
+  <tizen:application id="E36InUlJcw.iptv" package="E36InUlJcw" required_version="2.3.1" />
   <content src="index.html" />
+  <access origin="*" subdomains="true" />
   <feature name="http://tizen.org/feature/screen.size.all" />
   <name>Appk</name>
   <icon src="icon.png" />
+  <tizen:profile name="tv" />
+  <tizen:setting background-support="disable" context-menu="enable" encryption="disable" hwkey-event="enable" install-location="auto" screen-orientation="landscape" />
 </widget>

@@ -16,6 +16,7 @@ const TOKEN_KEY = 'iptv:web-admin:token';
 const REMEMBER_ME_KEY = 'iptv:web-admin:remember-me';
 const REGISTER_RESEND_COOLDOWN_SEC = 60;
 const PLAYLIST_FILE_MAX_BYTES = 2_000_000;
+const SUBSCRIBER_SOURCE_SELECTION_VALUE = 'SOURCE:';
 
 type StatusTone = 'idle' | 'ok' | 'error';
 type DevicePlaylistMode = 'GLOBAL' | 'SOURCE' | 'CUSTOM';
@@ -38,6 +39,7 @@ interface ClientItem {
   phone: string;
   address: string;
   devicesAllowed: number;
+  sourcePlaylistIds: string[];
   pairedDevices: number;
   createdAt: string;
   updatedAt: string;
@@ -49,7 +51,9 @@ interface FinalClientDraft {
   phone: string;
   address: string;
   devicesAllowed: string;
+  sourcePlaylistIds: string[];
 }
+type FinalClientTextField = Exclude<keyof FinalClientDraft, 'sourcePlaylistIds'>;
 
 interface PairedDeviceItem {
   id: string;
@@ -332,17 +336,48 @@ const sortClients = (rows: ClientItem[]): ClientItem[] => {
   });
 };
 
+const normalizeStringArray = (rawValue: unknown): string[] => {
+  if (!Array.isArray(rawValue)) {
+    return [];
+  }
+
+  const values: string[] = [];
+  const seen = new Set<string>();
+  for (const item of rawValue) {
+    if (typeof item !== 'string') {
+      continue;
+    }
+    const normalized = item.trim();
+    if (!normalized || seen.has(normalized)) {
+      continue;
+    }
+    seen.add(normalized);
+    values.push(normalized);
+  }
+  return values;
+};
+
 const toFinalClientDraft = (client: ClientItem): FinalClientDraft => ({
   firstName: client.firstName,
   lastName: client.lastName,
   phone: client.phone,
   address: client.address,
-  devicesAllowed: String(client.devicesAllowed)
+  devicesAllowed: String(client.devicesAllowed),
+  sourcePlaylistIds: [...client.sourcePlaylistIds]
 });
 
 const areFinalClientDraftsEqual = (left: FinalClientDraft | undefined, right: FinalClientDraft): boolean => {
   if (!left) {
     return false;
+  }
+
+  if (left.sourcePlaylistIds.length !== right.sourcePlaylistIds.length) {
+    return false;
+  }
+  for (let index = 0; index < left.sourcePlaylistIds.length; index += 1) {
+    if (left.sourcePlaylistIds[index] !== right.sourcePlaylistIds[index]) {
+      return false;
+    }
   }
 
   return (
@@ -611,6 +646,7 @@ export const App: React.FC = () => {
   const [clientPhone, setClientPhone] = useState('+373');
   const [clientAddress, setClientAddress] = useState('');
   const [clientDevicesAllowed, setClientDevicesAllowed] = useState('1');
+  const [clientSourcePlaylistIds, setClientSourcePlaylistIds] = useState<string[]>([]);
 
   const [playlistSourceName, setPlaylistSourceName] = useState('');
   const [playlistUrl, setPlaylistUrl] = useState('');
@@ -842,6 +878,13 @@ export const App: React.FC = () => {
 
   const parsePlaylistSelectionValue = useCallback(
     (selectionValue: string): { mode: DevicePlaylistMode; playlistId: string } | null => {
+      if (selectionValue === SUBSCRIBER_SOURCE_SELECTION_VALUE) {
+        return {
+          mode: 'SOURCE',
+          playlistId: ''
+        };
+      }
+
       const match = playlistSelectionOptions.find((option) => option.value === selectionValue);
       if (!match) {
         return null;
@@ -862,10 +905,12 @@ export const App: React.FC = () => {
 
   const getDefaultSourcePlaylistSelectionValue = useCallback(
     (): string =>
-      playlistSelectionOptions.find((option) => option.mode === 'SOURCE')?.value ??
-      playlistSelectionOptions[0]?.value ??
-      '',
-    [playlistSelectionOptions]
+      sourcePlaylistSelectionOptions.length > 0
+        ? SUBSCRIBER_SOURCE_SELECTION_VALUE
+        : (playlistSelectionOptions.find((option) => option.mode === 'SOURCE')?.value ??
+          playlistSelectionOptions[0]?.value ??
+          ''),
+    [playlistSelectionOptions, sourcePlaylistSelectionOptions]
   );
 
   useEffect(() => {
@@ -1140,7 +1185,12 @@ export const App: React.FC = () => {
   const fetchClients = useCallback((authToken: string): Promise<ClientItem[]> => {
     return fetchJson<ClientItem[]>(`${API_BASE}/clients`, {
       headers: { Authorization: `Bearer ${authToken}` }
-    });
+    }).then((rows) =>
+      rows.map((row) => ({
+        ...row,
+        sourcePlaylistIds: normalizeStringArray(row.sourcePlaylistIds)
+      }))
+    );
   }, []);
 
   const fetchAdmins = useCallback((authToken: string): Promise<AdminItem[]> => {
@@ -2101,7 +2151,8 @@ export const App: React.FC = () => {
           lastName: clientLastName,
           phone: clientPhone,
           address: clientAddress,
-          devicesAllowed
+          devicesAllowed,
+          sourcePlaylistIds: clientSourcePlaylistIds
         })
       });
 
@@ -2113,6 +2164,7 @@ export const App: React.FC = () => {
       setClientPhone('+373');
       setClientAddress('');
       setClientDevicesAllowed('1');
+      setClientSourcePlaylistIds([]);
 
       const normalizedPairCode = pairCode.trim().toUpperCase();
       if (normalizedPairCode) {
@@ -2170,7 +2222,7 @@ export const App: React.FC = () => {
     });
   };
 
-  const setFinalClientDraftField = (clientId: string, field: keyof FinalClientDraft, value: string): void => {
+  const setFinalClientDraftField = (clientId: string, field: FinalClientTextField, value: string): void => {
     setFinalClientDrafts((current) => {
       const draft = current[clientId];
       if (!draft) {
@@ -2182,6 +2234,23 @@ export const App: React.FC = () => {
         [clientId]: {
           ...draft,
           [field]: value
+        }
+      };
+    });
+  };
+
+  const setFinalClientDraftSourcePlaylists = (clientId: string, sourcePlaylistIds: string[]): void => {
+    setFinalClientDrafts((current) => {
+      const draft = current[clientId];
+      if (!draft) {
+        return current;
+      }
+
+      return {
+        ...current,
+        [clientId]: {
+          ...draft,
+          sourcePlaylistIds
         }
       };
     });
@@ -2207,14 +2276,16 @@ export const App: React.FC = () => {
         lastName: draft.lastName,
         phone: draft.phone,
         address: draft.address,
-        devicesAllowed
+        devicesAllowed,
+        sourcePlaylistIds: draft.sourcePlaylistIds
       };
       const hasChanges =
         nextPayload.firstName !== client.firstName ||
         nextPayload.lastName !== client.lastName ||
         nextPayload.phone !== client.phone ||
         nextPayload.address !== client.address ||
-        nextPayload.devicesAllowed !== client.devicesAllowed;
+        nextPayload.devicesAllowed !== client.devicesAllowed ||
+        !areStringArraysEqual(nextPayload.sourcePlaylistIds, client.sourcePlaylistIds);
 
       if (!hasChanges) {
         setStatusTone('ok');
@@ -2447,7 +2518,7 @@ export const App: React.FC = () => {
 
   const saveDevicePlaylistAssignment = async (device: PairedDeviceItem): Promise<void> => {
     const draft = getDevicePlaylistDraft(device);
-    if ((draft.mode === 'CUSTOM' || draft.mode === 'SOURCE') && !draft.customPlaylistId) {
+    if (draft.mode === 'CUSTOM' && !draft.customPlaylistId) {
       setStatusTone('error');
       setStatusMessage('Selecteaza un playlist din lista.');
       setFocusTopic('pairing');
@@ -3810,13 +3881,16 @@ export const App: React.FC = () => {
                             ) : (
                               <>
                                 {sourcePlaylistSelectionOptions.length > 0 ? (
-                                  <optgroup label="Surse de baza">
-                                    {sourcePlaylistSelectionOptions.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </optgroup>
+                                  <>
+                                    <option value={SUBSCRIBER_SOURCE_SELECTION_VALUE}>Playlisturile abonatului (multiple)</option>
+                                    <optgroup label="Surse de baza">
+                                      {sourcePlaylistSelectionOptions.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </optgroup>
+                                  </>
                                 ) : null}
                                 {customPlaylistSelectionOptions.length > 0 ? (
                                   <optgroup label="Constructor custom">
@@ -3889,13 +3963,16 @@ export const App: React.FC = () => {
                                       ) : (
                                         <>
                                           {sourcePlaylistSelectionOptions.length > 0 ? (
-                                            <optgroup label="Surse de baza">
-                                              {sourcePlaylistSelectionOptions.map((option) => (
-                                                <option key={option.value} value={option.value}>
-                                                  {option.label}
-                                                </option>
-                                              ))}
-                                            </optgroup>
+                                            <>
+                                              <option value={SUBSCRIBER_SOURCE_SELECTION_VALUE}>Playlisturile abonatului (multiple)</option>
+                                              <optgroup label="Surse de baza">
+                                                {sourcePlaylistSelectionOptions.map((option) => (
+                                                  <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                  </option>
+                                                ))}
+                                              </optgroup>
+                                            </>
                                           ) : null}
                                           {customPlaylistSelectionOptions.length > 0 ? (
                                             <optgroup label="Constructor custom">
@@ -4901,6 +4978,38 @@ export const App: React.FC = () => {
                   />
                 </label>
                 <label className="wa-row">
+                  <span className="wa-label">Playlisturi active abonat</span>
+                  <select
+                    className="wa-input"
+                    multiple
+                    value={clientSourcePlaylistIds}
+                    onChange={(event) =>
+                      setClientSourcePlaylistIds(Array.from(event.target.selectedOptions).map((option) => option.value))
+                    }
+                  >
+                    {sourcePlaylistSelectionOptions.length === 0 ? (
+                      <option value="" disabled>
+                        Nu exista surse de baza
+                      </option>
+                    ) : (
+                      sourcePlaylistSelectionOptions.map((option) => (
+                        <option key={option.playlistId} value={option.playlistId}>
+                          {option.label}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </label>
+                <p className="wa-base-playlists-meta">
+                  Active acum:{' '}
+                  {clientSourcePlaylistIds.length === 0
+                    ? 'toate sursele de baza'
+                    : basePlaylists
+                        .filter((playlist) => clientSourcePlaylistIds.includes(playlist.id))
+                        .map((playlist) => playlist.name)
+                        .join(', ') || 'niciun playlist valid selectat'}
+                </p>
+                <label className="wa-row">
                   <span className="wa-label">Playlist la Pair</span>
                   <select
                     className="wa-input"
@@ -4912,13 +5021,16 @@ export const App: React.FC = () => {
                     ) : (
                       <>
                         {sourcePlaylistSelectionOptions.length > 0 ? (
-                          <optgroup label="Surse de baza">
-                            {sourcePlaylistSelectionOptions.map((option) => (
-                              <option key={option.value} value={option.value}>
-                                {option.label}
-                              </option>
-                            ))}
-                          </optgroup>
+                          <>
+                            <option value={SUBSCRIBER_SOURCE_SELECTION_VALUE}>Playlisturile abonatului (multiple)</option>
+                            <optgroup label="Surse de baza">
+                              {sourcePlaylistSelectionOptions.map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          </>
                         ) : null}
                         {customPlaylistSelectionOptions.length > 0 ? (
                           <optgroup label="Constructor custom">
@@ -5324,7 +5436,8 @@ export const App: React.FC = () => {
                         draft.address !== client.address ||
                         (isDraftValid
                           ? parsedDraftDevices !== client.devicesAllowed
-                          : draft.devicesAllowed.trim() !== String(client.devicesAllowed));
+                          : draft.devicesAllowed.trim() !== String(client.devicesAllowed)) ||
+                        !areStringArraysEqual(draft.sourcePlaylistIds, client.sourcePlaylistIds);
                       const clientDevices = pairedDevicesByClient.byClientId.get(client.id) ?? [];
 
                       return (
@@ -5339,7 +5452,8 @@ export const App: React.FC = () => {
                               {client.lastName} {client.firstName}
                             </span>
                             <span className="wa-base-devices-client-meta">
-                              {client.phone} | device-uri: {clientDevices.length}/{client.devicesAllowed}
+                              {client.phone} | device-uri: {clientDevices.length}/{client.devicesAllowed} | playlisturi active:{' '}
+                              {client.sourcePlaylistIds.length === 0 ? 'toate' : client.sourcePlaylistIds.length}
                             </span>
                           </button>
 
@@ -5395,6 +5509,41 @@ export const App: React.FC = () => {
                                     placeholder="1"
                                   />
                                 </label>
+                                <label className="wa-row">
+                                  <span className="wa-label">Playlisturi active abonat</span>
+                                  <select
+                                    className="wa-input"
+                                    multiple
+                                    value={draft.sourcePlaylistIds}
+                                    onChange={(event) =>
+                                      setFinalClientDraftSourcePlaylists(
+                                        client.id,
+                                        Array.from(event.target.selectedOptions).map((option) => option.value)
+                                      )
+                                    }
+                                  >
+                                    {sourcePlaylistSelectionOptions.length === 0 ? (
+                                      <option value="" disabled>
+                                        Nu exista surse de baza
+                                      </option>
+                                    ) : (
+                                      sourcePlaylistSelectionOptions.map((option) => (
+                                        <option key={option.playlistId} value={option.playlistId}>
+                                          {option.label}
+                                        </option>
+                                      ))
+                                    )}
+                                  </select>
+                                </label>
+                                <p className="wa-base-devices-item-meta">
+                                  Active acum:{' '}
+                                  {draft.sourcePlaylistIds.length === 0
+                                    ? 'toate sursele de baza'
+                                    : basePlaylists
+                                        .filter((playlist) => draft.sourcePlaylistIds.includes(playlist.id))
+                                        .map((playlist) => playlist.name)
+                                        .join(', ') || 'niciun playlist valid selectat'}
+                                </p>
 
                                 <div className="wa-actions">
                                   <button
@@ -5463,13 +5612,16 @@ export const App: React.FC = () => {
                                               ) : (
                                                 <>
                                                   {sourcePlaylistSelectionOptions.length > 0 ? (
-                                                    <optgroup label="Surse de baza">
-                                                      {sourcePlaylistSelectionOptions.map((option) => (
-                                                        <option key={option.value} value={option.value}>
-                                                          {option.label}
-                                                        </option>
-                                                      ))}
-                                                    </optgroup>
+                                                    <>
+                                                      <option value={SUBSCRIBER_SOURCE_SELECTION_VALUE}>Playlisturile abonatului (multiple)</option>
+                                                      <optgroup label="Surse de baza">
+                                                        {sourcePlaylistSelectionOptions.map((option) => (
+                                                          <option key={option.value} value={option.value}>
+                                                            {option.label}
+                                                          </option>
+                                                        ))}
+                                                      </optgroup>
+                                                    </>
                                                   ) : null}
                                                   {customPlaylistSelectionOptions.length > 0 ? (
                                                     <optgroup label="Constructor custom">

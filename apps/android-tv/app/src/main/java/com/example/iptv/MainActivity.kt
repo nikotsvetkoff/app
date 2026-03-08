@@ -3,6 +3,7 @@ package com.example.iptv
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.view.KeyEvent as AndroidKeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -32,6 +33,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -55,6 +57,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.json.JSONObject
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.net.URI
 
 private enum class ScreenView {
     MENU,
@@ -64,6 +70,35 @@ private enum class ScreenView {
 }
 
 private const val LIST_VISIBLE_COUNT = 10
+private const val GUIDE_TIMELINE_STEP_MS = 30 * 60 * 1000L
+
+private data class PlaybackOverride(
+    val channelId: String,
+    val url: String,
+    val label: String
+)
+
+private fun normalizeDeviceFingerprint(value: String?): String? {
+    if (value.isNullOrBlank()) {
+        return null
+    }
+    val normalized = value
+        .trim()
+        .uppercase()
+        .replace(Regex("[^0-9A-Z]"), "")
+    return normalized.takeIf { it.length >= 6 }
+}
+
+private fun buildPairingDeviceName(baseName: String, fingerprint: String?): String {
+    val normalizedBase = baseName.trim().replace(Regex("\\s+"), " ").ifBlank { "Android device" }
+    if (fingerprint.isNullOrBlank()) {
+        return normalizedBase.take(64)
+    }
+
+    val suffix = " [$fingerprint]"
+    val allowedBaseLength = (64 - suffix.length).coerceAtLeast(0)
+    return "${normalizedBase.take(allowedBaseLength)}$suffix"
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,6 +130,16 @@ class MainActivity : ComponentActivity() {
         }
         val deviceName = if (isTv) "Android TV" else "Android device"
         val devicePlatform = if (isTv) "android-tv" else "android"
+        val deviceFingerprint = remember {
+            normalizeDeviceFingerprint(
+                runCatching {
+                    Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                }.getOrNull()
+            )
+        }
+        val pairingDeviceName = remember(deviceName, deviceFingerprint) {
+            buildPairingDeviceName(deviceName, deviceFingerprint)
+        }
 
         var view by rememberSaveable { mutableStateOf(ScreenView.MENU) }
         var menuIndex by rememberSaveable { mutableIntStateOf(0) }
@@ -108,10 +153,13 @@ class MainActivity : ComponentActivity() {
 
         var channels by remember { mutableStateOf<List<Channel>>(emptyList()) }
         var nowNextMap by remember { mutableStateOf<Map<String, NowNextItem>>(emptyMap()) }
+        var epgDayByTvgId by remember { mutableStateOf<Map<String, List<ProgramInfo>>>(emptyMap()) }
         var favorites by remember { mutableStateOf(store.getFavorites()) }
         var selectedCategoryIndex by rememberSaveable { mutableIntStateOf(0) }
         var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
         var playingChannelId by rememberSaveable { mutableStateOf<String?>(null) }
+        var guideFocusTimeMs by rememberSaveable { mutableLongStateOf(System.currentTimeMillis()) }
+        var playbackOverride by remember { mutableStateOf<PlaybackOverride?>(null) }
         var pairingJob by remember { mutableStateOf<Job?>(null) }
 
         val categories = remember(channels) {
@@ -145,6 +193,152 @@ class MainActivity : ComponentActivity() {
             }
         }
         val pairingUrl = buildWebAdminPairUrl(apiBase, pairCode)
+
+        fun normalizeTvgId(value: String?): String = value?.trim()?.lowercase().orEmpty()
+
+        fun parseProgramTimestamp(value: String?): Long? {
+            if (value.isNullOrBlank()) {
+                return null
+            }
+            return runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
+        }
+
+        fun formatTime(value: String?): String {
+            val timestamp = parseProgramTimestamp(value) ?: return "--:--"
+            val localDateTime = Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).toLocalDateTime()
+            return String.format("%02d:%02d", localDateTime.hour, localDateTime.minute)
+        }
+
+        fun formatTimeFromTimestamp(timestampMs: Long): String {
+            val localDateTime = Instant.ofEpochMilli(timestampMs).atZone(ZoneId.systemDefault()).toLocalDateTime()
+            return String.format("%02d:%02d", localDateTime.hour, localDateTime.minute)
+        }
+
+        fun formatProgramRange(program: ProgramInfo?): String {
+            if (program == null) {
+                return "--:-- - --:--"
+            }
+            return "${formatTime(program.start)} - ${formatTime(program.end)}"
+        }
+
+        fun getProgramsForChannel(channel: Channel?): List<ProgramInfo> {
+            if (channel == null) {
+                return emptyList()
+            }
+
+            val tvgId = normalizeTvgId(channel.tvgId)
+            val fromDayGrid = if (tvgId.isBlank()) null else epgDayByTvgId[tvgId]
+            if (!fromDayGrid.isNullOrEmpty()) {
+                return fromDayGrid
+            }
+
+            val nowNextItem = nowNextMap[channel.id]
+            return listOfNotNull(nowNextItem?.now, nowNextItem?.next).sortedBy {
+                parseProgramTimestamp(it.start) ?: Long.MAX_VALUE
+            }
+        }
+
+        fun findGuideProgramAtTime(programs: List<ProgramInfo>, timestampMs: Long): ProgramInfo? {
+            val active = programs.firstOrNull { program ->
+                val start = parseProgramTimestamp(program.start)
+                val end = parseProgramTimestamp(program.end)
+                start != null && end != null && timestampMs in start until end
+            }
+            if (active != null) {
+                return active
+            }
+
+            val next = programs.firstOrNull { program ->
+                val start = parseProgramTimestamp(program.start)
+                start != null && start >= timestampMs
+            }
+            return next ?: programs.lastOrNull()
+        }
+
+        fun getGuideProgramForChannel(channel: Channel?): ProgramInfo? {
+            val programs = getProgramsForChannel(channel)
+            return findGuideProgramAtTime(programs, guideFocusTimeMs)
+        }
+
+        fun resolveArchiveDays(channel: Channel?): Int {
+            if (channel == null) {
+                return 0
+            }
+            val explicit = channel.catchupDays
+            if (explicit != null && explicit > 0) {
+                return explicit
+            }
+            return if (!channel.catchupSource.isNullOrBlank() || !channel.catchup.isNullOrBlank()) 14 else 0
+        }
+
+        fun toEpochSeconds(timestampMs: Long): String = (timestampMs / 1000L).toString()
+
+        fun buildArchiveUrl(channel: Channel, program: ProgramInfo): String? {
+            val rawStartMs = parseProgramTimestamp(program.start) ?: return null
+            val rawEndMs = parseProgramTimestamp(program.end) ?: return null
+            if (rawEndMs <= rawStartMs) {
+                return null
+            }
+
+            val correctionMs = ((channel.catchupCorrection ?: 0.0) * 60 * 60 * 1000).toLong()
+            val startMs = rawStartMs + correctionMs
+            val endMs = rawEndMs + correctionMs
+            val durationSeconds = ((rawEndMs - rawStartMs) / 1000L).coerceAtLeast(60L)
+            val startEpoch = toEpochSeconds(startMs)
+            val endEpoch = toEpochSeconds(endMs)
+            val startIso = Instant.ofEpochMilli(startMs).toString()
+            val endIso = Instant.ofEpochMilli(endMs).toString()
+            val replacements = listOf(
+                "{start}" to startEpoch,
+                "\${start}" to startEpoch,
+                "{end}" to endEpoch,
+                "\${end}" to endEpoch,
+                "{duration}" to durationSeconds.toString(),
+                "\${duration}" to durationSeconds.toString(),
+                "{utc}" to startEpoch,
+                "\${utc}" to startEpoch,
+                "{lutc}" to startEpoch,
+                "\${lutc}" to startEpoch,
+                "{start_iso}" to startIso,
+                "\${start_iso}" to startIso,
+                "{end_iso}" to endIso,
+                "\${end_iso}" to endIso
+            )
+
+            val template = channel.catchupSource?.trim().orEmpty()
+            if (template.isNotBlank()) {
+                var resolved = template
+                for ((token, replacement) in replacements) {
+                    resolved = resolved.replace(token, replacement)
+                }
+                return try {
+                    URI(channel.url).resolve(resolved).toString()
+                } catch (_: Throwable) {
+                    resolved
+                }
+            }
+
+            return try {
+                Uri.parse(channel.url)
+                    .buildUpon()
+                    .appendQueryParameter("utc", startEpoch)
+                    .appendQueryParameter("lutc", startEpoch)
+                    .appendQueryParameter("duration", durationSeconds.toString())
+                    .build()
+                    .toString()
+            } catch (_: Throwable) {
+                null
+            }
+        }
+
+        val selectedGuideProgram = getGuideProgramForChannel(selectedChannel)
+        val selectedGuideProgramEndMs = parseProgramTimestamp(selectedGuideProgram?.end)
+        val selectedGuideArchiveDays = resolveArchiveDays(selectedChannel)
+        val canPlaySelectedArchive =
+            selectedGuideProgram != null &&
+                selectedGuideProgramEndMs != null &&
+                selectedGuideProgramEndMs <= System.currentTimeMillis() &&
+                selectedGuideArchiveDays > 0
 
         fun syncBounds() {
             if (categories.isEmpty()) {
@@ -211,11 +405,14 @@ class MainActivity : ComponentActivity() {
             }
 
             channels = playlist
-            nowNextMap = backend.getNowNext(token)
+            nowNextMap = runCatching { backend.getNowNext(token) }.getOrElse { emptyMap() }
+            epgDayByTvgId = runCatching { backend.getDayEpg(token, LocalDate.now().toString()) }.getOrElse { emptyMap() }
             favorites = store.getFavorites()
             selectedCategoryIndex = initialCategoryIndex
             selectedIndex = initialIndex
             playingChannelId = initialChannelId
+            playbackOverride = null
+            guideFocusTimeMs = System.currentTimeMillis()
             showList = true
             status = "Connected. Loaded ${playlist.size} channels."
             error = null
@@ -227,7 +424,7 @@ class MainActivity : ComponentActivity() {
             error = null
             status = "Generating pairing code..."
             pairCode = null
-            val started = backend.startPairing(deviceName, devicePlatform)
+            val started = backend.startPairing(pairingDeviceName, devicePlatform)
             pairCode = started.code
             status = "Pair code active. Confirm in web-admin."
 
@@ -261,9 +458,12 @@ class MainActivity : ComponentActivity() {
             store.clearDeviceToken()
             channels = emptyList()
             nowNextMap = emptyMap()
+            epgDayByTvgId = emptyMap()
             selectedCategoryIndex = 0
             selectedIndex = 0
             playingChannelId = null
+            playbackOverride = null
+            guideFocusTimeMs = System.currentTimeMillis()
             status = "Backend API saved: $normalized"
             error = null
             view = ScreenView.MENU
@@ -309,9 +509,12 @@ class MainActivity : ComponentActivity() {
             store.clearDeviceToken()
             channels = emptyList()
             nowNextMap = emptyMap()
+            epgDayByTvgId = emptyMap()
             selectedCategoryIndex = 0
             selectedIndex = 0
             playingChannelId = null
+            playbackOverride = null
+            guideFocusTimeMs = System.currentTimeMillis()
             showList = true
             menuIndex = 0
             view = ScreenView.MENU
@@ -334,6 +537,7 @@ class MainActivity : ComponentActivity() {
             val next = wrapIndex(selectedIndex + delta, categoryChannels.size)
             selectedIndex = next
             playingChannelId = categoryChannels[next].id
+            playbackOverride = null
         }
 
         fun stepCategory(delta: Int) {
@@ -344,6 +548,39 @@ class MainActivity : ComponentActivity() {
             selectedIndex = 0
         }
 
+        fun stepGuideTimeline(delta: Int) {
+            guideFocusTimeMs += delta * GUIDE_TIMELINE_STEP_MS
+        }
+
+        fun playChannelFromGuide(channel: Channel) {
+            val focusedProgram = getGuideProgramForChannel(channel)
+            val focusedProgramEndMs = parseProgramTimestamp(focusedProgram?.end)
+            val canPlayArchive =
+                focusedProgram != null &&
+                    focusedProgramEndMs != null &&
+                    focusedProgramEndMs <= System.currentTimeMillis() &&
+                    resolveArchiveDays(channel) > 0
+
+            if (focusedProgram != null && canPlayArchive) {
+                val archiveUrl = buildArchiveUrl(channel, focusedProgram)
+                if (!archiveUrl.isNullOrBlank()) {
+                    playbackOverride = PlaybackOverride(
+                        channelId = channel.id,
+                        url = archiveUrl,
+                        label = "${focusedProgram.title ?: "Arhiva"} (${formatProgramRange(focusedProgram)})"
+                    )
+                    playingChannelId = channel.id
+                    showList = false
+                    status = "Arhiva: ${channel.name}"
+                    return
+                }
+            }
+
+            playbackOverride = null
+            playingChannelId = channel.id
+            showList = false
+        }
+
         LaunchedEffect(categories.size, categoryChannels.size) {
             syncBounds()
         }
@@ -351,6 +588,31 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(apiBase) {
             val token = store.getDeviceToken()
             if (token.isNullOrBlank()) {
+                status =
+                    if (deviceFingerprint.isNullOrBlank()) {
+                        "Restoring device from database..."
+                    } else {
+                        "Restoring device from database ($deviceFingerprint)..."
+                    }
+                val restored = runCatching {
+                    backend.restoreDeviceToken(devicePlatform, deviceFingerprint, pairingDeviceName)
+                }.getOrNull()
+                if (restored?.restored == true && !restored.deviceToken.isNullOrBlank()) {
+                    try {
+                        store.setDeviceToken(restored.deviceToken)
+                        loadDeviceData(restored.deviceToken)
+                        status =
+                            if (restored.deviceName.isNullOrBlank()) {
+                                "Device restored from database."
+                            } else {
+                                "Device restored: ${restored.deviceName}"
+                            }
+                        return@LaunchedEffect
+                    } catch (_: Throwable) {
+                        store.clearDeviceToken()
+                    }
+                }
+                status = null
                 view = ScreenView.MENU
                 return@LaunchedEffect
             }
@@ -363,13 +625,33 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        LaunchedEffect(view, playingChannel?.id) {
+        LaunchedEffect(view) {
+            if (view != ScreenView.PLAYER) {
+                return@LaunchedEffect
+            }
+            val token = store.getDeviceToken() ?: return@LaunchedEffect
+            while (true) {
+                delay(60_000L)
+                nowNextMap = runCatching { backend.getNowNext(token) }.getOrElse { nowNextMap }
+                if (showList) {
+                    epgDayByTvgId = runCatching { backend.getDayEpg(token, LocalDate.now().toString()) }.getOrElse { epgDayByTvgId }
+                }
+            }
+        }
+
+        LaunchedEffect(view, playingChannel?.id, playbackOverride?.url) {
             if (view != ScreenView.PLAYER) {
                 return@LaunchedEffect
             }
             val channel = playingChannel ?: return@LaunchedEffect
+            val playbackUrl =
+                if (playbackOverride?.channelId == channel.id && !playbackOverride?.url.isNullOrBlank()) {
+                    playbackOverride?.url ?: channel.url
+                } else {
+                    channel.url
+                }
             try {
-                playerController.play(channel.url)
+                playerController.play(playbackUrl)
                 store.setLastChannelId(channel.id)
                 val token = store.getDeviceToken()
                 if (!token.isNullOrBlank()) {
@@ -391,10 +673,10 @@ class MainActivity : ComponentActivity() {
             when (view) {
                 ScreenView.PLAYER -> {
                     if (categoryChannels.isEmpty()) return false
-                    if (!showList && (action == "UP" || action == "LEFT")) {
+                    if (!showList && (action == "UP" || action == "LEFT" || action == "CHANNEL_UP" || action == "REWIND")) {
                         stepChannelAndPlay(-1); return true
                     }
-                    if (!showList && (action == "DOWN" || action == "RIGHT")) {
+                    if (!showList && (action == "DOWN" || action == "RIGHT" || action == "CHANNEL_DOWN" || action == "FAST_FORWARD")) {
                         stepChannelAndPlay(1); return true
                     }
                     if (showList && action == "UP") {
@@ -402,6 +684,12 @@ class MainActivity : ComponentActivity() {
                     }
                     if (showList && action == "DOWN") {
                         stepChannel(1); return true
+                    }
+                    if (showList && action == "REWIND") {
+                        stepGuideTimeline(-1); return true
+                    }
+                    if (showList && action == "FAST_FORWARD") {
+                        stepGuideTimeline(1); return true
                     }
                     if (showList && action == "LEFT") {
                         stepCategory(-1); return true
@@ -419,8 +707,7 @@ class MainActivity : ComponentActivity() {
                             return true
                         }
                         val channel = selectedChannel ?: return true
-                        playingChannelId = channel.id
-                        showList = false
+                        playChannelFromGuide(channel)
                         return true
                     }
                     if (action == "MENU") {
@@ -428,7 +715,50 @@ class MainActivity : ComponentActivity() {
                         targetChannel?.let { favorites = store.toggleFavorite(it.id) }
                         return true
                     }
+                    if (action == "PAUSE") {
+                        playerController.pause()
+                        return true
+                    }
+                    if (action == "PLAY") {
+                        val channel = playingChannel ?: return true
+                        val playbackUrl =
+                            if (playbackOverride?.channelId == channel.id && !playbackOverride?.url.isNullOrBlank()) {
+                                playbackOverride?.url ?: channel.url
+                            } else {
+                                channel.url
+                            }
+                        playerController.play(playbackUrl)
+                        return true
+                    }
+                    if (action == "PLAY_PAUSE") {
+                        if (exoPlayer.isPlaying) {
+                            playerController.pause()
+                        } else {
+                            val channel = playingChannel ?: return true
+                            val playbackUrl =
+                                if (playbackOverride?.channelId == channel.id && !playbackOverride?.url.isNullOrBlank()) {
+                                    playbackOverride?.url ?: channel.url
+                                } else {
+                                    channel.url
+                                }
+                            playerController.play(playbackUrl)
+                        }
+                        return true
+                    }
+                    if (action == "STOP") {
+                        playerController.stop()
+                        showList = true
+                        return true
+                    }
+                    if (action == "MUTE") {
+                        exoPlayer.volume = if (exoPlayer.volume > 0f) 0f else 1f
+                        return true
+                    }
                     if (action == "BACK") {
+                        if (showList) {
+                            showList = false
+                            return true
+                        }
                         logout(); return true
                     }
                 }
@@ -472,6 +802,17 @@ class MainActivity : ComponentActivity() {
             .onPreviewKeyEvent { event ->
                 if (event.nativeKeyEvent.action != AndroidKeyEvent.ACTION_DOWN) {
                     return@onPreviewKeyEvent false
+                }
+                when (event.nativeKeyEvent.keyCode) {
+                    AndroidKeyEvent.KEYCODE_MEDIA_REWIND -> return@onPreviewKeyEvent onAction("REWIND")
+                    AndroidKeyEvent.KEYCODE_MEDIA_FAST_FORWARD -> return@onPreviewKeyEvent onAction("FAST_FORWARD")
+                    AndroidKeyEvent.KEYCODE_CHANNEL_UP -> return@onPreviewKeyEvent onAction("CHANNEL_UP")
+                    AndroidKeyEvent.KEYCODE_CHANNEL_DOWN -> return@onPreviewKeyEvent onAction("CHANNEL_DOWN")
+                    AndroidKeyEvent.KEYCODE_MEDIA_PLAY_PAUSE -> return@onPreviewKeyEvent onAction("PLAY_PAUSE")
+                    AndroidKeyEvent.KEYCODE_MEDIA_PLAY -> return@onPreviewKeyEvent onAction("PLAY")
+                    AndroidKeyEvent.KEYCODE_MEDIA_PAUSE -> return@onPreviewKeyEvent onAction("PAUSE")
+                    AndroidKeyEvent.KEYCODE_MEDIA_STOP -> return@onPreviewKeyEvent onAction("STOP")
+                    AndroidKeyEvent.KEYCODE_MUTE -> return@onPreviewKeyEvent onAction("MUTE")
                 }
                 when (event.key) {
                     Key.DirectionUp -> onAction("UP")
@@ -633,11 +974,17 @@ class MainActivity : ComponentActivity() {
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(playingChannel?.name ?: "No channel selected", color = Color.White, fontWeight = FontWeight.Bold)
-                        Text(if (showList) "ENTER play fullscreen" else "UP/DOWN change channel, OK menu", color = Color(0xFFD3E1EF))
+                        Text(
+                            if (showList) "ENTER play | REW/FF timp ghid" else "UP/DOWN canal | OK lista | CH+/- canal",
+                            color = Color(0xFFD3E1EF)
+                        )
                     }
                     Spacer(Modifier.height(8.dp))
                     Text("Now: ${nowNext?.now?.title ?: "N/A"}", color = Color.White, fontWeight = FontWeight.SemiBold)
                     Text("Next: ${nowNext?.next?.title ?: "N/A"}", color = Color(0xFFD4DEE8))
+                    if (playbackOverride != null) {
+                        Text("Arhiva activa: ${playbackOverride?.label.orEmpty()}", color = Color(0xFFFFDFA5))
+                    }
                     if (!error.isNullOrBlank()) {
                         Spacer(Modifier.height(8.dp))
                         Text(error!!, color = Color(0xFFFFD7D7))
@@ -651,15 +998,32 @@ class MainActivity : ComponentActivity() {
                                 .background(Color(0xFF0F1728), RoundedCornerShape(12.dp))
                                 .padding(12.dp)
                         ) {
-                            Text("Categorii", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                            Text("Categorii / Ghid", color = Color.White, style = MaterialTheme.typography.titleLarge)
                             Text("${categories.getOrNull(selectedCategoryIndex)?.first ?: "-"} (${selectedCategoryIndex + 1}/${categories.size.coerceAtLeast(1)})", color = Color(0xFFD3E1EF))
                             Text("${if (categoryChannels.isNotEmpty()) selectedIndex + 1 else 0} / ${categoryChannels.size}", color = Color(0xFFD3E1EF))
+                            Text("Focus timp: ${formatTimeFromTimestamp(guideFocusTimeMs)}", color = Color(0xFFD3E1EF))
+                            Text("LEFT/RIGHT categorie | REW/FF timp | ENTER live/arhiva", color = Color(0xFFBFD4ED))
+                            Text(
+                                "Program focus: ${selectedGuideProgram?.title ?: "EPG indisponibil"} (${formatProgramRange(selectedGuideProgram)})",
+                                color = Color.White
+                            )
+                            Text(
+                                if (canPlaySelectedArchive) "Arhiva disponibila (${selectedGuideArchiveDays} zile)" else "Arhiva indisponibila",
+                                color = if (canPlaySelectedArchive) Color(0xFFFFDFA5) else Color(0xFFBFD4ED)
+                            )
                             Spacer(Modifier.height(8.dp))
                             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                                 itemsIndexed(visibleChannels) { index, channel ->
                                     val absoluteIndex = visibleStart + index
                                     val selected = absoluteIndex == selectedIndex
                                     val favorite = favorites.contains(channel.id)
+                                    val focusedProgram = getGuideProgramForChannel(channel)
+                                    val focusedProgramEndMs = parseProgramTimestamp(focusedProgram?.end)
+                                    val canArchive =
+                                        focusedProgram != null &&
+                                            focusedProgramEndMs != null &&
+                                            focusedProgramEndMs <= System.currentTimeMillis() &&
+                                            resolveArchiveDays(channel) > 0
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -668,13 +1032,20 @@ class MainActivity : ComponentActivity() {
                                             .border(if (selected) 2.dp else 1.dp, if (selected) Color(0xFFF4B447) else Color(0xFF2B3F56), RoundedCornerShape(10.dp))
                                             .clickable {
                                                 selectedIndex = absoluteIndex
-                                                playingChannelId = channel.id
-                                                showList = false
                                             }
                                             .padding(10.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Text(channel.name, color = Color.White, modifier = Modifier.weight(1f))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(channel.name, color = Color.White)
+                                            Text(
+                                                "${focusedProgram?.title ?: "Fara EPG"} (${formatProgramRange(focusedProgram)})",
+                                                color = Color(0xFFD3E1EF)
+                                            )
+                                            if (canArchive) {
+                                                Text("ARHIVA", color = Color(0xFFFFDFA5), fontWeight = FontWeight.Bold)
+                                            }
+                                        }
                                         OutlinedButton(onClick = { favorites = store.toggleFavorite(channel.id) }) {
                                             Text(if (favorite) "Fav" else "+Fav")
                                         }

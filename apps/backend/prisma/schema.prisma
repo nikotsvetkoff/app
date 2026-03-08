@@ -108,6 +108,7 @@ model Client {
   phone          String
   address        String
   devicesAllowed Int      @default(1)
+  sourcePlaylistIds Json?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   userId         String

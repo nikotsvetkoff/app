@@ -82,6 +82,10 @@ export interface PlaylistChannelItem {
   logo?: string;
   group?: string;
   tvgId?: string;
+  catchup?: string;
+  catchupDays?: number;
+  catchupSource?: string;
+  catchupCorrection?: number;
   url: string;
   position: number;
   sourcePlaylistIds: string[];
@@ -872,7 +876,8 @@ export class PlaylistService {
         id: true,
         userId: true,
         playlistMode: true,
-        customPlaylistId: true
+        customPlaylistId: true,
+        clientId: true
       }
     });
     if (!device?.userId) {
@@ -911,6 +916,22 @@ export class PlaylistService {
             customPlaylistId: null
           }
         });
+      }
+
+      const clientId = device.clientId?.trim() ?? '';
+      if (clientId) {
+        const clientSourcePlaylistIds = await this.getClientSourcePlaylistIds(
+          device.userId,
+          clientId
+        );
+        if (clientSourcePlaylistIds.length > 0) {
+          const sourceChannels = await this.getMergedSourceChannelsForUser(
+            device.userId,
+            true,
+            clientSourcePlaylistIds
+          );
+          return sourceChannels.map((channel) => this.toChannel(channel));
+        }
       }
 
       return channels;
@@ -994,7 +1015,8 @@ export class PlaylistService {
 
   private async getMergedSourceChannelsForUser(
     userId: string,
-    allowRefresh: boolean
+    allowRefresh: boolean,
+    sourcePlaylistIds?: string[]
   ): Promise<PlaylistChannelItem[]> {
     await this.ensureLegacySourceMigrated(userId);
 
@@ -1007,13 +1029,21 @@ export class PlaylistService {
         url: true
       }
     });
+    const scopedSourceIds = this.parseSourcePlaylistIds(sourcePlaylistIds);
+    const scopedBasePlaylists =
+      scopedSourceIds.length > 0
+        ? this.filterAndOrderBasePlaylists(basePlaylists, scopedSourceIds)
+        : basePlaylists;
 
-    if (!basePlaylists.length) {
+    if (!scopedBasePlaylists.length) {
+      if (scopedSourceIds.length > 0) {
+        return [];
+      }
       throw new NotFoundException('Source playlist URL is not configured');
     }
 
     const channelsBySource = await Promise.all(
-      basePlaylists.map(async (source) => ({
+      scopedBasePlaylists.map(async (source) => ({
         source,
         channels: await this.getChannelsForBasePlaylist(userId, source, allowRefresh)
       }))
@@ -1400,6 +1430,32 @@ export class PlaylistService {
     }
 
     return normalized;
+  }
+
+  private async getClientSourcePlaylistIds(userId: string, clientId: string): Promise<string[]> {
+    const client = await this.prisma.client.findFirst({
+      where: {
+        id: clientId,
+        userId
+      },
+      select: {
+        sourcePlaylistIds: true
+      }
+    });
+    if (!client) {
+      return [];
+    }
+    return this.parseSourcePlaylistIds(client.sourcePlaylistIds);
+  }
+
+  private filterAndOrderBasePlaylists(
+    basePlaylists: BasePlaylistIdentityRow[],
+    orderedIds: string[]
+  ): BasePlaylistIdentityRow[] {
+    const byId = new Map(basePlaylists.map((playlist) => [playlist.id, playlist] as const));
+    return orderedIds
+      .map((playlistId) => byId.get(playlistId))
+      .filter((playlist): playlist is BasePlaylistIdentityRow => Boolean(playlist));
   }
 
   private async ensureCustomPlaylistOwner(userId: string, playlistId: string): Promise<void> {

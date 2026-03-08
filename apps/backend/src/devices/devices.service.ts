@@ -40,6 +40,18 @@ export interface PairedDeviceListItem {
   sourcePlaylistName: string | null;
 }
 
+export interface WebOsRestoreResponse {
+  restored: boolean;
+  deviceToken?: string;
+  deviceName?: string;
+}
+
+export interface DeviceRestoreResponse {
+  restored: boolean;
+  deviceToken?: string;
+  deviceName?: string;
+}
+
 @Injectable()
 export class DevicesService {
   constructor(
@@ -235,7 +247,8 @@ export class DevicesService {
             select: {
               id: true,
               firstName: true,
-              lastName: true
+              lastName: true,
+              sourcePlaylistIds: true
             }
           }
         }
@@ -263,7 +276,13 @@ export class DevicesService {
       const customId = mode === 'CUSTOM' ? device.customPlaylistId : null;
       const customName = customId ? (customNameById.get(customId) ?? null) : null;
       const sourceId = mode === 'SOURCE' ? device.customPlaylistId : null;
-      const sourceName = sourceId ? (sourceNameById.get(sourceId) ?? null) : null;
+      const clientSourcePlaylistIds = this.asStringArray(device.client?.sourcePlaylistIds);
+      const sourceName =
+        sourceId
+          ? (sourceNameById.get(sourceId) ?? null)
+          : mode === 'SOURCE' && clientSourcePlaylistIds.length > 0
+            ? `Subscriber sources (${clientSourcePlaylistIds.length})`
+            : null;
       const clientName = device.client
         ? `${device.client.lastName} ${device.client.firstName}`.trim()
         : null;
@@ -283,6 +302,144 @@ export class DevicesService {
         sourcePlaylistName: sourceName
       };
     });
+  }
+
+  async restoreWebOsTokenByMac(macAddress?: string): Promise<WebOsRestoreResponse> {
+    const normalizedMac = this.normalizeMacAddress(macAddress);
+    const devices = await this.prisma.device.findMany({
+      where: {
+        platform: 'webos',
+        userId: {
+          not: null
+        },
+        pairedAt: {
+          not: null
+        },
+        deviceToken: {
+          not: null
+        }
+      },
+      orderBy: [{ pairedAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        name: true,
+        deviceToken: true
+      },
+      take: 500
+    });
+
+    if (normalizedMac.length === 12) {
+      const matchedByMac = devices.find((device) => {
+        const nameMac = this.extractNormalizedMacFromName(device.name);
+        return Boolean(nameMac) && nameMac === normalizedMac;
+      });
+      const macToken = matchedByMac?.deviceToken?.trim();
+      if (macToken) {
+        return {
+          restored: true,
+          deviceToken: macToken,
+          deviceName: matchedByMac?.name
+        };
+      }
+    }
+
+    // Legacy fallback for older devices paired without MAC in name.
+    if (devices.length === 1) {
+      const only = devices[0];
+      const token = only.deviceToken?.trim();
+      if (token) {
+        return {
+          restored: true,
+          deviceToken: token,
+          deviceName: only.name
+        };
+      }
+    }
+
+    return {
+      restored: false
+    };
+  }
+
+  async restoreTokenByFingerprint(
+    platform?: string,
+    fingerprint?: string,
+    deviceName?: string
+  ): Promise<DeviceRestoreResponse> {
+    const normalizedPlatform = this.normalizePlatform(platform);
+    if (!normalizedPlatform) {
+      return {
+        restored: false
+      };
+    }
+
+    const normalizedFingerprint = this.normalizeFingerprint(fingerprint);
+    const normalizedDeviceName = this.normalizeDeviceName(deviceName);
+    const devices = await this.prisma.device.findMany({
+      where: {
+        platform: normalizedPlatform,
+        userId: {
+          not: null
+        },
+        pairedAt: {
+          not: null
+        },
+        deviceToken: {
+          not: null
+        }
+      },
+      orderBy: [{ pairedAt: 'desc' }, { updatedAt: 'desc' }],
+      select: {
+        name: true,
+        deviceToken: true
+      },
+      take: 500
+    });
+
+    if (normalizedFingerprint) {
+      const matchedByFingerprint = devices.find((device) => {
+        const extracted = this.extractNormalizedFingerprintFromName(device.name);
+        return Boolean(extracted) && extracted === normalizedFingerprint;
+      });
+      const token = matchedByFingerprint?.deviceToken?.trim();
+      if (token) {
+        return {
+          restored: true,
+          deviceToken: token,
+          deviceName: matchedByFingerprint?.name
+        };
+      }
+    }
+
+    if (normalizedDeviceName) {
+      const matchedByName = devices.find(
+        (device) => this.normalizeDeviceName(device.name) === normalizedDeviceName
+      );
+      const token = matchedByName?.deviceToken?.trim();
+      if (token) {
+        return {
+          restored: true,
+          deviceToken: token,
+          deviceName: matchedByName?.name
+        };
+      }
+    }
+
+    // Legacy fallback for older clients that did not send fingerprint in device name.
+    if (devices.length === 1) {
+      const only = devices[0];
+      const token = only.deviceToken?.trim();
+      if (token) {
+        return {
+          restored: true,
+          deviceToken: token,
+          deviceName: only.name
+        };
+      }
+    }
+
+    return {
+      restored: false
+    };
   }
 
   async updateDevicePlaylistForUser(
@@ -419,6 +576,58 @@ export class DevicesService {
     return 'GLOBAL';
   }
 
+  private normalizeMacAddress(rawValue?: string): string {
+    return (rawValue ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^0-9A-F]/g, '');
+  }
+
+  private normalizePlatform(rawValue?: string): string {
+    const normalized = (rawValue ?? '').trim().toLowerCase();
+    return normalized || '';
+  }
+
+  private normalizeFingerprint(rawValue?: string): string {
+    const normalized = (rawValue ?? '')
+      .trim()
+      .toUpperCase()
+      .replace(/[^0-9A-Z]/g, '');
+    return normalized.length >= 6 ? normalized : '';
+  }
+
+  private normalizeDeviceName(rawValue?: string): string {
+    return (rawValue ?? '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+  }
+
+  private extractNormalizedFingerprintFromName(deviceName?: string): string | undefined {
+    if (!deviceName) {
+      return undefined;
+    }
+
+    const inSquareBrackets = deviceName.match(/\[([^\]]+)\]/)?.[1];
+    const fromBrackets = this.normalizeFingerprint(inSquareBrackets);
+    if (fromBrackets) {
+      return fromBrackets;
+    }
+
+    return this.extractNormalizedMacFromName(deviceName);
+  }
+
+  private extractNormalizedMacFromName(deviceName?: string): string | undefined {
+    if (!deviceName) {
+      return undefined;
+    }
+
+    const regex = /([0-9A-F]{2}(?::[0-9A-F]{2}){5}|[0-9A-F]{2}(?:-[0-9A-F]{2}){5}|[0-9A-F]{12})/i;
+    const matched = deviceName.match(regex)?.[0];
+    const normalized = this.normalizeMacAddress(matched);
+    return normalized.length === 12 ? normalized : undefined;
+  }
+
   private async generateUniqueCode(): Promise<string> {
     for (let attempt = 0; attempt < 6; attempt += 1) {
       const code = randomBytes(4)
@@ -434,5 +643,27 @@ export class DevicesService {
     }
 
     throw new Error('Failed to generate unique pairing code');
+  }
+
+  private asStringArray(rawValue: unknown): string[] {
+    if (!Array.isArray(rawValue)) {
+      return [];
+    }
+
+    const rows: string[] = [];
+    const unique = new Set<string>();
+    for (const item of rawValue) {
+      if (typeof item !== 'string') {
+        continue;
+      }
+      const normalized = item.trim();
+      if (!normalized || unique.has(normalized)) {
+        continue;
+      }
+      unique.add(normalized);
+      rows.push(normalized);
+    }
+
+    return rows;
   }
 }

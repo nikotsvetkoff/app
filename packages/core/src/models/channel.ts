@@ -11,6 +11,10 @@ export interface Channel {
   logo?: string;
   group?: string;
   tvgId?: string;
+  catchup?: string;
+  catchupDays?: number;
+  catchupSource?: string;
+  catchupCorrection?: number;
   url: string;
   headers?: Record<string, string>;
   drm?: ChannelDrmInfo;

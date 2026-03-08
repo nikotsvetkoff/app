@@ -21,5 +21,29 @@ module.exports = {
     'apps/android-tv/**',
     '*.config.js',
     '*.config.cjs'
+  ],
+  overrides: [
+    {
+      files: ['apps/tizen/src/**/*.{ts,tsx}'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: ['apps/webos/*', '../webos/*', '../../webos/*', '../../../webos/*']
+          }
+        ]
+      }
+    },
+    {
+      files: ['apps/webos/src/**/*.{ts,tsx}'],
+      rules: {
+        'no-restricted-imports': [
+          'error',
+          {
+            patterns: ['apps/tizen/*', '../tizen/*', '../../tizen/*', '../../../tizen/*']
+          }
+        ]
+      }
+    }
   ]
 };

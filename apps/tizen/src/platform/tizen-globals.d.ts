@@ -7,6 +7,21 @@ declare global {
         open(url: string): void;
         close(): void;
         prepareAsync(onSuccess: () => void, onError?: (error: unknown) => void): void;
+        getState?(): 'NONE' | 'IDLE' | 'READY' | 'PLAYING' | 'PAUSED' | 'UNKNOWN';
+        setStreamingProperty?(propertyType: string, value: string): void;
+        getTotalTrackInfo?(): Array<{
+          type?: string;
+          index?: number;
+          track_num?: number;
+          [key: string]: unknown;
+        }>;
+        setSelectTrack?(type: 'VIDEO' | 'AUDIO' | 'TEXT', index: number): void;
+        setDisplayMethod?(
+          mode:
+            | 'PLAYER_DISPLAY_MODE_LETTER_BOX'
+            | 'PLAYER_DISPLAY_MODE_FULL_SCREEN'
+            | 'PLAYER_DISPLAY_MODE_AUTO_ASPECT_RATIO'
+        ): void;
         play(): void;
         pause(): void;
         stop(): void;

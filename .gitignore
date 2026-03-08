@@ -21,3 +21,4 @@ apps/backend/.env
 # OS
 .DS_Store
 Thumbs.db
+apps/backend/data/backups/*.json

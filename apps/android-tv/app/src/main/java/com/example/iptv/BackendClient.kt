@@ -9,6 +9,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
+import java.net.URLEncoder
+import java.nio.charset.StandardCharsets
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 class BackendClient(
@@ -45,6 +48,27 @@ class BackendClient(
         )
     }
 
+    suspend fun restoreDeviceToken(
+        platform: String,
+        fingerprint: String? = null,
+        deviceName: String? = null
+    ): DeviceRestoreResponse = withContext(Dispatchers.IO) {
+        val queryParts = mutableListOf("platform=${encodeQuery(platform)}")
+        if (!fingerprint.isNullOrBlank()) {
+            queryParts += "fingerprint=${encodeQuery(fingerprint)}"
+        }
+        if (!deviceName.isNullOrBlank()) {
+            queryParts += "name=${encodeQuery(deviceName)}"
+        }
+
+        val responseJson = request("/devices/restore-token?${queryParts.joinToString("&")}", "GET")
+        DeviceRestoreResponse(
+            restored = responseJson.optBoolean("restored", false),
+            deviceToken = responseJson.optStringOrNull("deviceToken"),
+            deviceName = responseJson.optStringOrNull("deviceName")
+        )
+    }
+
     suspend fun getPlaylist(deviceToken: String): List<Channel> = withContext(Dispatchers.IO) {
         val responseJson = request("/device/playlist", "GET", deviceToken = deviceToken)
         val channels = responseJson.optJSONArray("channels") ?: JSONArray()
@@ -56,10 +80,14 @@ class BackendClient(
                     Channel(
                         id = item.getString("id"),
                         name = item.getString("name"),
-                        logo = item.optString("logo", null),
-                        group = item.optString("group", null),
-                        groupName = item.optString("groupName", null),
-                        tvgId = item.optString("tvgId", null),
+                        logo = item.optStringOrNull("logo"),
+                        group = item.optStringOrNull("group"),
+                        groupName = item.optStringOrNull("groupName"),
+                        tvgId = item.optStringOrNull("tvgId"),
+                        catchup = item.optStringOrNull("catchup"),
+                        catchupDays = item.optIntOrNull("catchupDays"),
+                        catchupSource = item.optStringOrNull("catchupSource"),
+                        catchupCorrection = item.optDoubleOrNull("catchupCorrection"),
                         url = item.getString("url")
                     )
                 )
@@ -83,6 +111,8 @@ class BackendClient(
                     channelId,
                     NowNextItem(
                         channelId = channelId,
+                        channelTvgId = item.optStringOrNull("channelTvgId"),
+                        channelLogo = item.optStringOrNull("channelLogo"),
                         now = item.optJSONObject("now")?.toProgramInfo(),
                         next = item.optJSONObject("next")?.toProgramInfo()
                     )
@@ -90,6 +120,40 @@ class BackendClient(
             }
         }
     }
+
+    suspend fun getDayEpg(deviceToken: String, dateKey: String): Map<String, List<ProgramInfo>> =
+        withContext(Dispatchers.IO) {
+            val responseJson = request("/device/epg/day?date=$dateKey", "GET", deviceToken = deviceToken)
+            val items = responseJson.optJSONArray("items") ?: JSONArray()
+
+            buildMap {
+                for (index in 0 until items.length()) {
+                    val item = items.optJSONObject(index) ?: continue
+                    val channelTvgId = item.optString("channelTvgId", "").trim().lowercase()
+                    if (channelTvgId.isBlank()) {
+                        continue
+                    }
+
+                    val programsArray = item.optJSONArray("programs") ?: JSONArray()
+                    val programs = buildList {
+                        for (programIndex in 0 until programsArray.length()) {
+                            val programObject = programsArray.optJSONObject(programIndex) ?: continue
+                            val program = programObject.toProgramInfo()
+                            val startMs = parseProgramTimestamp(program.start)
+                            val endMs = parseProgramTimestamp(program.end)
+                            if (program.title.isNullOrBlank() || startMs == null || endMs == null || endMs <= startMs) {
+                                continue
+                            }
+                            add(program)
+                        }
+                    }.sortedBy { parseProgramTimestamp(it.start) ?: Long.MAX_VALUE }
+
+                    if (programs.isNotEmpty()) {
+                        put(channelTvgId, programs)
+                    }
+                }
+            }
+        }
 
     suspend fun sendTelemetry(deviceToken: String, type: String, payload: JSONObject = JSONObject()) {
         withContext(Dispatchers.IO) {
@@ -104,11 +168,50 @@ class BackendClient(
 
     private fun JSONObject.toProgramInfo(): ProgramInfo {
         return ProgramInfo(
-            title = optString("title", null),
-            start = optString("start", null),
-            end = optString("end", null)
+            title = optStringOrNull("title"),
+            start = optStringOrNull("start"),
+            end = optStringOrNull("end"),
+            description = optStringOrNull("description")
         )
     }
+
+    private fun JSONObject.optStringOrNull(key: String): String? {
+        val value = optString(key, "").trim()
+        return value.takeIf { it.isNotEmpty() }
+    }
+
+    private fun JSONObject.optIntOrNull(key: String): Int? {
+        if (!has(key) || isNull(key)) {
+            return null
+        }
+        val fromNumber = runCatching { getInt(key) }.getOrNull()
+        if (fromNumber != null && fromNumber > 0) {
+            return fromNumber
+        }
+        val fromString = optStringOrNull(key)?.toIntOrNull()
+        return fromString?.takeIf { it > 0 }
+    }
+
+    private fun JSONObject.optDoubleOrNull(key: String): Double? {
+        if (!has(key) || isNull(key)) {
+            return null
+        }
+        val fromNumber = runCatching { getDouble(key) }.getOrNull()
+        if (fromNumber != null && fromNumber.isFinite()) {
+            return fromNumber
+        }
+        return optStringOrNull(key)?.toDoubleOrNull()?.takeIf { it.isFinite() }
+    }
+
+    private fun parseProgramTimestamp(value: String?): Long? {
+        if (value.isNullOrBlank()) {
+            return null
+        }
+        return runCatching { Instant.parse(value).toEpochMilli() }.getOrNull()
+    }
+
+    private fun encodeQuery(value: String): String =
+        URLEncoder.encode(value, StandardCharsets.UTF_8.toString())
 
     private fun request(
         path: String,

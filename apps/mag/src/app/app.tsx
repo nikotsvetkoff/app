@@ -23,6 +23,12 @@ interface PairStatusResponse {
   deviceToken?: string;
 }
 
+interface RestoreTokenResponse {
+  restored: boolean;
+  deviceToken?: string;
+  deviceName?: string;
+}
+
 interface SettingOption {
   id: string;
   label: string;
@@ -258,6 +264,147 @@ const removeStorageValue = (key: string): void => {
   }
 };
 
+const normalizeFingerprint = (value?: string): string =>
+  (value ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, '');
+
+const sanitizeFingerprint = (value?: string): string | undefined => {
+  const normalized = normalizeFingerprint(value);
+  return normalized.length >= 6 ? normalized : undefined;
+};
+
+const extractMacFingerprint = (value?: string): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  const match = value.match(/([0-9A-F]{2}(?::[0-9A-F]{2}){5}|[0-9A-F]{2}(?:-[0-9A-F]{2}){5}|[0-9A-F]{12})/i)?.[0];
+  if (!match) {
+    return undefined;
+  }
+  const normalized = normalizeFingerprint(match);
+  return normalized.length === 12 ? normalized : undefined;
+};
+
+const buildDeviceNameWithFingerprint = (baseName: string, fingerprint?: string): string => {
+  const normalizedBase = (baseName ?? '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  const safeBase = normalizedBase || 'MAG250 Linux Box';
+  if (!fingerprint) {
+    return safeBase.slice(0, 64);
+  }
+
+  const suffix = ` [${fingerprint}]`;
+  const allowedBaseLength = Math.max(0, 64 - suffix.length);
+  return `${safeBase.slice(0, allowedBaseLength)}${suffix}`;
+};
+
+const requestMagDeviceFingerprint = (): string | undefined => {
+  const magWindow = window as Window & {
+    stb?: {
+      GetMacAddress?: () => string;
+      GetSerialNumber?: () => string;
+      GetDeviceID?: () => string;
+    };
+    mag?: {
+      getDeviceId?: () => string;
+      device?: {
+        mac?: string;
+        serial?: string;
+        id?: string;
+      };
+    };
+  };
+
+  const candidates: Array<unknown> = [];
+
+  try {
+    candidates.push(magWindow.stb?.GetMacAddress?.());
+  } catch {
+    // ignore runtime capability errors
+  }
+  try {
+    candidates.push(magWindow.stb?.GetSerialNumber?.());
+  } catch {
+    // ignore runtime capability errors
+  }
+  try {
+    candidates.push(magWindow.stb?.GetDeviceID?.());
+  } catch {
+    // ignore runtime capability errors
+  }
+  try {
+    candidates.push(magWindow.mag?.getDeviceId?.());
+  } catch {
+    // ignore runtime capability errors
+  }
+
+  candidates.push(magWindow.mag?.device?.mac);
+  candidates.push(magWindow.mag?.device?.serial);
+  candidates.push(magWindow.mag?.device?.id);
+
+  for (const candidate of candidates) {
+    if (typeof candidate !== 'string') {
+      continue;
+    }
+
+    const mac = extractMacFingerprint(candidate);
+    if (mac) {
+      return mac;
+    }
+
+    const normalized = sanitizeFingerprint(candidate);
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return undefined;
+};
+
+const buildMagDeviceIdentity = (): { deviceName: string; fingerprint?: string } => {
+  const fingerprint = requestMagDeviceFingerprint();
+  return {
+    deviceName: buildDeviceNameWithFingerprint('MAG250 Linux Box', fingerprint),
+    fingerprint
+  };
+};
+
+const appendApiBaseCandidate = (list: string[], value?: string): void => {
+  if (!value) {
+    return;
+  }
+
+  const normalized = normalizeBaseUrl(value);
+  if (!normalized) {
+    return;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    const candidate = `${parsed.protocol}//${parsed.host}`;
+    if (!list.includes(candidate)) {
+      list.push(candidate);
+    }
+    return;
+  } catch {
+    if (!list.includes(normalized)) {
+      list.push(normalized);
+    }
+  }
+};
+
+const buildApiBaseCandidates = (preferredBase?: string): string[] => {
+  const candidates: string[] = [];
+  appendApiBaseCandidate(candidates, preferredBase);
+  appendApiBaseCandidate(candidates, getStorageValue(API_BASE_KEY));
+  appendApiBaseCandidate(candidates, DEFAULT_API_BASE);
+  appendApiBaseCandidate(candidates, LAN_FALLBACK_API_BASE);
+  return candidates;
+};
+
 const getInitialApiBase = (): string => {
   const fallback = normalizeBaseUrl(DEFAULT_API_BASE);
   const stored = getStorageValue(API_BASE_KEY);
@@ -482,11 +629,7 @@ export const MagApp: React.FC = () => {
 
   const loadPlaylist = useCallback(
     async (token: string) => {
-      const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-      const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-      if (!candidates.includes(fallbackBase)) {
-        candidates.push(fallbackBase);
-      }
+      const candidates = buildApiBaseCandidates(apiBase);
 
       let response: PlaylistResponse | undefined;
       let usedBase = candidates[0];
@@ -534,6 +677,49 @@ export const MagApp: React.FC = () => {
     [apiBase]
   );
 
+  const restoreTokenByFingerprint = useCallback(
+    async (
+      fingerprint?: string,
+      deviceName?: string
+    ): Promise<{ deviceToken?: string; deviceName?: string; resolvedBase?: string }> => {
+      const normalizedFingerprint = sanitizeFingerprint(fingerprint);
+      const normalizedDeviceName = (deviceName ?? '').trim();
+      const candidates = buildApiBaseCandidates(apiBase);
+
+      for (const candidateBase of candidates) {
+        try {
+          const params = new URLSearchParams({ platform: 'mag' });
+          if (normalizedFingerprint) {
+            params.set('fingerprint', normalizedFingerprint);
+          }
+          if (normalizedDeviceName) {
+            params.set('name', normalizedDeviceName);
+          }
+
+          const response = await fetchJson<RestoreTokenResponse>(
+            `${candidateBase}/devices/restore-token?${params.toString()}`
+          );
+          if (response.restored && typeof response.deviceToken === 'string' && response.deviceToken.trim()) {
+            return {
+              deviceToken: response.deviceToken.trim(),
+              deviceName: response.deviceName,
+              resolvedBase: candidateBase
+            };
+          }
+
+          return {
+            resolvedBase: candidateBase
+          };
+        } catch {
+          // ignore restore failures and continue with next candidate
+        }
+      }
+
+      return {};
+    },
+    [apiBase]
+  );
+
   const startPairing = useCallback(async () => {
     clearPairPolling();
     setView('pairing');
@@ -541,11 +727,12 @@ export const MagApp: React.FC = () => {
     setStatusMessage('Generating pairing code...');
     setPairCode(undefined);
     setPairingUrl(undefined);
+    const identity = buildMagDeviceIdentity();
 
     const started = await fetchJson<PairStartResponse>(`${apiBase}/devices/pair/start`, {
       method: 'POST',
       body: JSON.stringify({
-        deviceName: 'MAG250 Linux Box',
+        deviceName: identity.deviceName,
         platform: 'mag'
       })
     });
@@ -659,18 +846,69 @@ export const MagApp: React.FC = () => {
   }, [categoryChannels.length, selectedIndex]);
 
   useEffect(() => {
-    const existingToken = getStorageValue(DEVICE_TOKEN_KEY);
-    if (!existingToken) {
-      return;
-    }
+    let cancelled = false;
 
-    loadPlaylist(existingToken).catch((err: unknown) => {
-      removeStorageValue(DEVICE_TOKEN_KEY);
-      const message = err instanceof Error ? err.message : 'Saved token is invalid.';
+    const restoreOrConnect = async (): Promise<void> => {
+      const existingToken = getStorageValue(DEVICE_TOKEN_KEY)?.trim();
+      if (existingToken) {
+        try {
+          await loadPlaylist(existingToken);
+        } catch (err: unknown) {
+          removeStorageValue(DEVICE_TOKEN_KEY);
+          const message = err instanceof Error ? err.message : 'Saved token is invalid.';
+          setErrorMessage(message);
+          setView('menu');
+        }
+        return;
+      }
+
+      const identity = buildMagDeviceIdentity();
+      setStatusMessage(
+        identity.fingerprint
+          ? `Restoring device from database (${identity.fingerprint})...`
+          : 'Restoring device from database...'
+      );
+
+      const restored = await restoreTokenByFingerprint(identity.fingerprint, identity.deviceName);
+      if (cancelled) {
+        return;
+      }
+
+      if (restored.resolvedBase && restored.resolvedBase !== apiBase) {
+        setApiBase(restored.resolvedBase);
+        setApiBaseInput(restored.resolvedBase);
+        setStorageValue(API_BASE_KEY, restored.resolvedBase);
+      }
+
+      if (!restored.deviceToken) {
+        setStatusMessage(undefined);
+        return;
+      }
+
+      try {
+        await loadPlaylist(restored.deviceToken);
+        setStatusMessage(
+          restored.deviceName
+            ? `Device restored: ${restored.deviceName}`
+            : 'Device restored from database.'
+        );
+      } catch {
+        setStatusMessage(undefined);
+      }
+    };
+
+    restoreOrConnect().catch((error: unknown) => {
+      if (cancelled) {
+        return;
+      }
+      const message = error instanceof Error ? error.message : 'Restore failed.';
       setErrorMessage(message);
-      setView('menu');
     });
-  }, [loadPlaylist]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apiBase, loadPlaylist, restoreTokenByFingerprint]);
 
   useEffect(() => {
     if (view !== 'player' || !playingChannel || !videoRef.current) {

@@ -1,8 +1,9 @@
 {
   "id": "com.example.iptv.webos",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "vendor": "Example",
   "type": "web",
+  "useAllKeyboardKeys": true,
   "main": "index.html",
   "title": "IPTV webOS MVP",
   "icon": "icon.png",
