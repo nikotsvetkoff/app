@@ -1669,3 +1669,4 @@ Please make sure your database server is running at `localhost:5432`.
 }
 
 Node.js v24.13.1
+ ELIFECYCLE  Command failed with exit code 4294967295.

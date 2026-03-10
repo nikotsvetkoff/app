@@ -23,12 +23,15 @@ interface XmlProgramState {
 interface XmlNowNextState {
   now?: XmlProgramState;
   next?: XmlProgramState;
+  nextAfter?: XmlProgramState;
+  lastPast?: XmlProgramState;
 }
 
 export interface XmlTvNowNextSnapshot {
   generatedAt: string;
   nowNextByTvgId: Record<string, { now?: EpgProgram; next?: EpgProgram }>;
   logosByTvgId: Record<string, string>;
+  channelNamesByTvgId: Record<string, string[]>;
 }
 
 interface ParseXmlTvNowNextOptions {
@@ -40,7 +43,9 @@ const normalizeTvgId = (raw: string): string => raw.trim().toLowerCase();
 
 const toIso = (raw: string): string => {
   const value = raw.trim();
-  const matched = value.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?/);
+  const matched = value.match(
+    /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?(?:\s*([+-]\d{4}|Z))?$/
+  );
 
   if (!matched) {
     const fallback = new Date(value);
@@ -50,8 +55,10 @@ const toIso = (raw: string): string => {
     return fallback.toISOString();
   }
 
-  const [, y, m, d, hh, mm, ss, tzRaw] = matched;
-  const tz = tzRaw ? `${tzRaw.slice(0, 3)}:${tzRaw.slice(3)}` : 'Z';
+  const [, y, m, d, hh, mm, ssRaw, tzRaw] = matched;
+  const ss = ssRaw ?? '00';
+  const tz =
+    tzRaw && tzRaw !== 'Z' ? `${tzRaw.slice(0, 3)}:${tzRaw.slice(3)}` : tzRaw === 'Z' ? 'Z' : 'Z';
   const isoInput = `${y}-${m}-${d}T${hh}:${mm}:${ss}${tz}`;
   const parsed = new Date(isoInput);
 
@@ -192,6 +199,7 @@ export const parseXmlTvNowNextSnapshot = async (
   const nowMs = nowDate.getTime();
   const nowNextByTvgId = new Map<string, XmlNowNextState>();
   const logosByTvgId = new Map<string, string>();
+  const channelNamesByTvgId = new Map<string, Set<string>>();
 
   await new Promise<void>((resolve, reject) => {
     const parser = sax.createStream(true, {
@@ -244,12 +252,40 @@ export const parseXmlTvNowNextSnapshot = async (
       if (parsedStart.ms > nowMs) {
         const existingNext = current.next;
         if (!existingNext || parsedStart.ms < existingNext.startMs) {
+          const displacedNext = existingNext;
           current.next = {
             program,
             startMs: parsedStart.ms,
             endMs: parsedEnd.ms
           };
+
+          if (displacedNext) {
+            const existingAfter = current.nextAfter;
+            if (!existingAfter || displacedNext.startMs < existingAfter.startMs) {
+              current.nextAfter = displacedNext;
+            }
+          }
+        } else {
+          const existingAfter = current.nextAfter;
+          if (!existingAfter || parsedStart.ms < existingAfter.startMs) {
+            current.nextAfter = {
+              program,
+              startMs: parsedStart.ms,
+              endMs: parsedEnd.ms
+            };
+          }
         }
+        nowNextByTvgId.set(tvgId, current);
+        return;
+      }
+
+      const existingPast = current.lastPast;
+      if (!existingPast || parsedEnd.ms > existingPast.endMs) {
+        current.lastPast = {
+          program,
+          startMs: parsedStart.ms,
+          endMs: parsedEnd.ms
+        };
         nowNextByTvgId.set(tvgId, current);
       }
     };
@@ -308,6 +344,10 @@ export const parseXmlTvNowNextSnapshot = async (
           applyNowNext(currentProgramme);
           currentProgramme = undefined;
         }
+      } else if (currentChannelId && nodeName === 'display-name' && value) {
+        const existing = channelNamesByTvgId.get(currentChannelId) ?? new Set<string>();
+        existing.add(value);
+        channelNamesByTvgId.set(currentChannelId, existing);
       } else if (nodeName === 'channel') {
         currentChannelId = undefined;
       }
@@ -326,9 +366,25 @@ export const parseXmlTvNowNextSnapshot = async (
 
   const nowNextJson: Record<string, { now?: EpgProgram; next?: EpgProgram }> = {};
   for (const [tvgId, state] of nowNextByTvgId.entries()) {
+    let resolvedNow = state.now?.program;
+    let resolvedNext = state.next?.program;
+
+    if (!resolvedNow) {
+      if (state.lastPast?.program) {
+        resolvedNow = state.lastPast.program;
+      } else if (state.next?.program) {
+        resolvedNow = state.next.program;
+        resolvedNext = state.nextAfter?.program;
+      }
+    }
+
+    if (!resolvedNow && !resolvedNext) {
+      continue;
+    }
+
     nowNextJson[tvgId] = {
-      now: state.now?.program,
-      next: state.next?.program
+      now: resolvedNow,
+      next: resolvedNext
     };
   }
 
@@ -337,9 +393,18 @@ export const parseXmlTvNowNextSnapshot = async (
     logosJson[tvgId] = logoUrl;
   }
 
+  const channelNamesJson: Record<string, string[]> = {};
+  for (const [tvgId, displayNames] of channelNamesByTvgId.entries()) {
+    const list = [...displayNames].map((value) => value.trim()).filter(Boolean);
+    if (list.length > 0) {
+      channelNamesJson[tvgId] = list;
+    }
+  }
+
   return {
     generatedAt: nowDate.toISOString(),
     nowNextByTvgId: nowNextJson,
-    logosByTvgId: logosJson
+    logosByTvgId: logosJson,
+    channelNamesByTvgId: channelNamesJson
   };
 };

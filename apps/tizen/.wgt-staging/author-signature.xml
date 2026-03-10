@@ -7,10 +7,10 @@
 <DigestValue>hicqvZZVN9DKIP7k4phtoVqudr8mFqAfZ4E80vO9sHgOBnjFxZ6MDuiurxOgyIkKfcp3so64Yl1d
 3l4p9f/ANw==</DigestValue>
 </Reference>
-<Reference URI="assets%2Findex-legacy-DPjQqDVm.js">
+<Reference URI="assets%2Findex-legacy-D_x-ZvTh.js">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>E7cxSnq0/LGrlmRJozAHZUnts8jGkq5ThavK8bTHoGP26A4L6VoVvy8Xd6ZhU/baNglc3YkB25vG
-TFcCcp3gSA==</DigestValue>
+<DigestValue>Mm69S8AEEmTdi6XMmOQQO5zN1wQj45hQLkZpn9a4QMX32pPrbKHkpRw2WXW0hcdQ7F0hP3hBaMFn
+VSAK+V8g3A==</DigestValue>
 </Reference>
 <Reference URI="assets%2Fpolyfills-legacy-DbOVAbxa.js">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
@@ -19,8 +19,8 @@ sLE7UCabWQ==</DigestValue>
 </Reference>
 <Reference URI="config.xml">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>YK1MW7PDybGzxcekzQVJWwU+0VVqVOUqsbpQYvS6G0Shj8xjxnAxYpahwPQBUHyJSdRarCr++Iox
-oNcLMb2rdg==</DigestValue>
+<DigestValue>/LFU5o2ebKPmQG4Grt0bZBlmt6rq3MT9d9V6JwnQ9qZYggeGqLW9AzXaR6/EMQyPq3z5HrorTIK2
+0O4Vds9pEw==</DigestValue>
 </Reference>
 <Reference URI="icon.png">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
@@ -29,13 +29,13 @@ oNcLMb2rdg==</DigestValue>
 </Reference>
 <Reference URI="index.html">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>Aqx5y6iDw3E7Lbh5DAq8WO5x4AqtKkmNWwNTj1WdD2Y6kY9OGVypLq9JximLbEL7+3CFB/uk8mak
-s2y704HpFw==</DigestValue>
+<DigestValue>HxegjTXz78uQOL8jZiK9CmmUdOEXwM3gN89TLvlq+hJkhFbIYiUxNWh0pqgeauqcoHcWwq3BsTfi
+itMa1LvNrg==</DigestValue>
 </Reference>
 <Reference URI="tizen.styles.css">
 <DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha512"></DigestMethod>
-<DigestValue>HcAvPohVGgniB7jWO6lhmtr4oo0ymMzUJezi4rZcl6YAN8P03XPmbm0gOS9mYnDSBE2/c000EmOk
-BHYByMJCsA==</DigestValue>
+<DigestValue>9qBLnF2WggqEYq3qgWELICWxGsFTXA4V/TsH9yjEJDcd5GnaChv4BE2omUMwmaNg33hdog3OHygn
+Xh6iowArrA==</DigestValue>
 </Reference>
 <Reference URI="#prop">
 <Transforms>
@@ -47,9 +47,9 @@ QY10fG1EWQ==</DigestValue>
 </Reference>
 </SignedInfo>
 <SignatureValue>
-ic/GVtK1+kamL67eYfZx787RHQEvCpkmrTQM6g/idEkWnpfzAOnbnbCdBQXcVDVHG6p3Uv0/3h7a
-cFM+AwsB1G0hcFF88k3cnYAgwNkuLk8vwC5PET5bqylX0v1EB8SCSdIhTGkdhM2tOJwFsag48uun
-0QBHOEJD8JTYtvyO4q8=
+LkAs6HhVrOMUcjurbbV/RdQauNZAP+rbVOgyvswy1XkCxYSHCAIl28HXmfEogjD6u8ADQ0veW8ax
+AOu7r3Y716ao0qCW8F8LmwPpAucmS9hvFO9SK4Qe8WW5aJ4AUJhXYHLFQDhgTuVua2fvuRxgBrZk
+Q2ZycjtLxF7+/frARA4=
 </SignatureValue>
 <KeyInfo>
 <X509Data>

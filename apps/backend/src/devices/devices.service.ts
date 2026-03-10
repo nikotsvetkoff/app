@@ -10,6 +10,7 @@ import { PairingStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import type { PairStartDto } from './dto/pair-start.dto';
+import { extractDeviceIpTag, withDeviceIpTag } from '../common/client-ip.util';
 
 const PLAYLIST_MODES = ['GLOBAL', 'SOURCE', 'CUSTOM'] as const;
 type DevicePlaylistMode = (typeof PLAYLIST_MODES)[number];
@@ -17,6 +18,11 @@ type DevicePlaylistMode = (typeof PLAYLIST_MODES)[number];
 interface DevicePlaylistAssignment {
   playlistMode: DevicePlaylistMode;
   customPlaylistId: string | null;
+}
+
+interface DeviceIdentity {
+  normalizedName: string;
+  fingerprint?: string;
 }
 
 export interface PairingStartResponse {
@@ -29,6 +35,8 @@ export interface PairedDeviceListItem {
   id: string;
   name: string;
   platform: string;
+  macAddress: string | null;
+  ipAddress: string | null;
   pairedAt: string | null;
   lastSeenAt: string | null;
   clientId: string | null;
@@ -59,28 +67,68 @@ export class DevicesService {
     @Inject(ConfigService) private readonly configService: ConfigService
   ) {}
 
-  async startPairing(dto: PairStartDto): Promise<PairingStartResponse> {
+  async startPairing(dto: PairStartDto, clientIp?: string): Promise<PairingStartResponse> {
+    await this.cleanupStalePairingArtifacts();
+
     const code = await this.generateUniqueCode();
     const ttlSec = Number(this.configService.get('PAIRING_CODE_TTL_SEC') ?? 600);
     const pollIntervalSec = Number(this.configService.get('PAIRING_POLL_INTERVAL_SEC') ?? 3);
     const expiresAt = new Date(Date.now() + ttlSec * 1000);
+    const sanitizedDeviceName = this.stripDeviceIpTag(dto.deviceName);
+    const storedDeviceName = withDeviceIpTag(sanitizedDeviceName, clientIp);
+    const identity = this.resolveDeviceIdentity(sanitizedDeviceName);
 
-    const device = await this.prisma.device.create({
-      data: {
-        name: dto.deviceName,
-        platform: dto.platform
-      }
+    const candidateUnpairedDevices = await this.prisma.device.findMany({
+      where: {
+        platform: dto.platform,
+        userId: null,
+        pairedAt: null
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        name: true
+      },
+      take: 50
     });
 
-    await this.prisma.pairingSession.create({
-      data: {
-        code,
-        deviceId: device.id,
-        expiresAt,
-        pollIntervalSec,
-        status: PairingStatus.PENDING
-      }
-    });
+    const reusableDevice = candidateUnpairedDevices.find((row) =>
+      this.matchesDeviceIdentity(this.resolveDeviceIdentity(row.name), identity)
+    );
+
+    const device = reusableDevice
+      ? await this.prisma.device.update({
+          where: { id: reusableDevice.id },
+          data: {
+            name: storedDeviceName
+          }
+        })
+      : await this.prisma.device.create({
+          data: {
+            name: storedDeviceName,
+            platform: dto.platform
+          }
+        });
+
+    await this.prisma.$transaction([
+      this.prisma.pairingSession.deleteMany({
+        where: {
+          deviceId: device.id,
+          status: {
+            in: [PairingStatus.PENDING, PairingStatus.EXPIRED]
+          }
+        }
+      }),
+      this.prisma.pairingSession.create({
+        data: {
+          code,
+          deviceId: device.id,
+          expiresAt,
+          pollIntervalSec,
+          status: PairingStatus.PENDING
+        }
+      })
+    ]);
 
     return {
       code,
@@ -118,7 +166,9 @@ export class DevicesService {
     }
 
     const normalizedClientId = clientId?.trim();
+    const incomingIdentity = this.resolveDeviceIdentity(pairing.device.name);
     let pairedClientId: string | null = null;
+    let canReuseExistingForClient = false;
 
     if (normalizedClientId) {
       const client = await this.prisma.client.findFirst({
@@ -145,13 +195,22 @@ export class DevicesService {
         throw new NotFoundException('Client not found');
       }
 
-      if (client.devices.length >= client.devicesAllowed) {
+      pairedClientId = client.id;
+
+      const existingForSameClient = await this.findExistingPairedDeviceByIdentity(
+        userId,
+        pairing.device.platform,
+        pairedClientId,
+        incomingIdentity,
+        pairing.deviceId
+      );
+      canReuseExistingForClient = Boolean(existingForSameClient);
+
+      if (client.devices.length >= client.devicesAllowed && !canReuseExistingForClient) {
         throw new ConflictException(
           `Client reached devices limit (${client.devicesAllowed}). Increase limit in admin.`
         );
       }
-
-      pairedClientId = client.id;
     }
 
     const assignment = await this.resolveDevicePlaylistAssignment(
@@ -159,29 +218,93 @@ export class DevicesService {
       playlistMode,
       customPlaylistId
     );
-    const deviceToken = pairing.device.deviceToken ?? randomBytes(32).toString('base64url');
+    const existingDevice = await this.findExistingPairedDeviceByIdentity(
+      userId,
+      pairing.device.platform,
+      pairedClientId,
+      incomingIdentity,
+      pairing.deviceId
+    );
+    const resolvedDeviceToken =
+      existingDevice?.deviceToken?.trim() ||
+      pairing.device.deviceToken?.trim() ||
+      randomBytes(32).toString('base64url');
+    const persistedDeviceName = withDeviceIpTag(
+      this.stripDeviceIpTag(pairing.device.name),
+      extractDeviceIpTag(pairing.device.name)
+    );
+    const now = new Date();
+    const targetDeviceId = existingDevice?.id ?? pairing.deviceId;
 
-    await this.prisma.$transaction([
-      this.prisma.device.update({
-        where: { id: pairing.deviceId },
-        data: {
-          userId,
-          pairedAt: new Date(),
-          deviceToken,
-          clientId: pairedClientId,
-          playlistMode: assignment.playlistMode,
-          customPlaylistId: assignment.customPlaylistId
+    if (existingDevice) {
+      await this.prisma.$transaction([
+        this.prisma.device.update({
+          where: { id: existingDevice.id },
+          data: {
+            name: persistedDeviceName,
+            userId,
+            pairedAt: now,
+            deviceToken: resolvedDeviceToken,
+            clientId: pairedClientId,
+            playlistMode: assignment.playlistMode,
+            customPlaylistId: assignment.customPlaylistId
+          }
+        }),
+        this.prisma.pairingSession.update({
+          where: { id: pairing.id },
+          data: {
+            status: PairingStatus.PAIRED,
+            userId,
+            confirmedAt: now,
+            deviceId: existingDevice.id
+          }
+        }),
+        this.prisma.pairingSession.deleteMany({
+          where: {
+            deviceId: pairing.deviceId,
+            id: {
+              not: pairing.id
+            }
+          }
+        }),
+        this.prisma.device.delete({
+          where: { id: pairing.deviceId }
+        })
+      ]);
+    } else {
+      await this.prisma.$transaction([
+        this.prisma.device.update({
+          where: { id: pairing.deviceId },
+          data: {
+            name: persistedDeviceName,
+            userId,
+            pairedAt: now,
+            deviceToken: resolvedDeviceToken,
+            clientId: pairedClientId,
+            playlistMode: assignment.playlistMode,
+            customPlaylistId: assignment.customPlaylistId
+          }
+        }),
+        this.prisma.pairingSession.update({
+          where: { id: pairing.id },
+          data: {
+            status: PairingStatus.PAIRED,
+            userId,
+            confirmedAt: now
+          }
+        })
+      ]);
+    }
+
+    // Keep only the latest pairing record for a physical device identity.
+    await this.prisma.pairingSession.deleteMany({
+      where: {
+        deviceId: targetDeviceId,
+        id: {
+          not: pairing.id
         }
-      }),
-      this.prisma.pairingSession.update({
-        where: { id: pairing.id },
-        data: {
-          status: PairingStatus.PAIRED,
-          userId,
-          confirmedAt: new Date()
-        }
-      })
-    ]);
+      }
+    });
 
     return { success: true };
   }
@@ -286,11 +409,14 @@ export class DevicesService {
       const clientName = device.client
         ? `${device.client.lastName} ${device.client.firstName}`.trim()
         : null;
+      const macAddress = this.extractDisplayMacFromName(device.name);
 
       return {
         id: device.id,
-        name: device.name,
+        name: this.stripDeviceIpTag(device.name),
         platform: device.platform,
+        macAddress,
+        ipAddress: extractDeviceIpTag(device.name),
         pairedAt: device.pairedAt?.toISOString() ?? null,
         lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
         clientId: device.client?.id ?? null,
@@ -337,7 +463,7 @@ export class DevicesService {
         return {
           restored: true,
           deviceToken: macToken,
-          deviceName: matchedByMac?.name
+          deviceName: matchedByMac ? this.stripDeviceIpTag(matchedByMac.name) : undefined
         };
       }
     }
@@ -350,7 +476,7 @@ export class DevicesService {
         return {
           restored: true,
           deviceToken: token,
-          deviceName: only.name
+          deviceName: this.stripDeviceIpTag(only.name)
         };
       }
     }
@@ -405,7 +531,9 @@ export class DevicesService {
         return {
           restored: true,
           deviceToken: token,
-          deviceName: matchedByFingerprint?.name
+          deviceName: matchedByFingerprint
+            ? this.stripDeviceIpTag(matchedByFingerprint.name)
+            : undefined
         };
       }
     }
@@ -419,7 +547,7 @@ export class DevicesService {
         return {
           restored: true,
           deviceToken: token,
-          deviceName: matchedByName?.name
+          deviceName: matchedByName ? this.stripDeviceIpTag(matchedByName.name) : undefined
         };
       }
     }
@@ -432,7 +560,7 @@ export class DevicesService {
         return {
           restored: true,
           deviceToken: token,
-          deviceName: only.name
+          deviceName: this.stripDeviceIpTag(only.name)
         };
       }
     }
@@ -597,7 +725,7 @@ export class DevicesService {
   }
 
   private normalizeDeviceName(rawValue?: string): string {
-    return (rawValue ?? '')
+    return this.stripDeviceIpTag(rawValue ?? '')
       .trim()
       .replace(/\s+/g, ' ')
       .toLowerCase();
@@ -609,6 +737,9 @@ export class DevicesService {
     }
 
     const inSquareBrackets = deviceName.match(/\[([^\]]+)\]/)?.[1];
+    if (inSquareBrackets && /^ip\s*:/i.test(inSquareBrackets.trim())) {
+      return this.extractNormalizedMacFromName(deviceName);
+    }
     const fromBrackets = this.normalizeFingerprint(inSquareBrackets);
     if (fromBrackets) {
       return fromBrackets;
@@ -626,6 +757,113 @@ export class DevicesService {
     const matched = deviceName.match(regex)?.[0];
     const normalized = this.normalizeMacAddress(matched);
     return normalized.length === 12 ? normalized : undefined;
+  }
+
+  private stripDeviceIpTag(deviceName: string): string {
+    return deviceName.replace(/\s*\[IP:\s*[^\]]+\]\s*$/i, '').trim();
+  }
+
+  private extractDisplayMacFromName(deviceName: string): string | null {
+    const normalizedMac = this.extractNormalizedMacFromName(deviceName);
+    if (!normalizedMac) {
+      return null;
+    }
+
+    return normalizedMac.match(/.{1,2}/g)?.join(':') ?? null;
+  }
+
+  private resolveDeviceIdentity(deviceName?: string): DeviceIdentity {
+    const sanitizedName = this.stripDeviceIpTag(deviceName ?? '');
+    return {
+      normalizedName: this.normalizeDeviceName(sanitizedName),
+      fingerprint: this.extractNormalizedFingerprintFromName(sanitizedName)
+    };
+  }
+
+  private matchesDeviceIdentity(left: DeviceIdentity, right: DeviceIdentity): boolean {
+    if (left.fingerprint && right.fingerprint) {
+      return left.fingerprint === right.fingerprint;
+    }
+
+    if (left.fingerprint || right.fingerprint) {
+      return false;
+    }
+
+    return left.normalizedName.length > 0 && left.normalizedName === right.normalizedName;
+  }
+
+  private async findExistingPairedDeviceByIdentity(
+    userId: string,
+    platform: string,
+    clientId: string | null,
+    identity: DeviceIdentity,
+    excludeDeviceId?: string
+  ): Promise<{ id: string; name: string; deviceToken: string | null } | null> {
+    if (!identity.fingerprint && !identity.normalizedName) {
+      return null;
+    }
+
+    const rows = await this.prisma.device.findMany({
+      where: {
+        userId,
+        platform,
+        pairedAt: {
+          not: null
+        },
+        clientId,
+        ...(excludeDeviceId ? { id: { not: excludeDeviceId } } : {})
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        id: true,
+        name: true,
+        deviceToken: true
+      },
+      take: 200
+    });
+
+    const matched = rows.find((row) =>
+      this.matchesDeviceIdentity(this.resolveDeviceIdentity(row.name), identity)
+    );
+    return matched ?? null;
+  }
+
+  private async cleanupStalePairingArtifacts(): Promise<void> {
+    const expiredCutoff = new Date(Date.now() - 6 * 60 * 60 * 1000);
+    const orphanDeviceCutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    await this.prisma.$transaction([
+      this.prisma.pairingSession.deleteMany({
+        where: {
+          OR: [
+            {
+              status: PairingStatus.EXPIRED
+            },
+            {
+              status: PairingStatus.PENDING,
+              expiresAt: {
+                lt: new Date()
+              }
+            }
+          ],
+          createdAt: {
+            lt: expiredCutoff
+          }
+        }
+      }),
+      this.prisma.device.deleteMany({
+        where: {
+          userId: null,
+          pairedAt: null,
+          createdAt: {
+            lt: orphanDeviceCutoff
+          },
+          pairingSessions: {
+            none: {}
+          }
+        }
+      })
+    ]);
   }
 
   private async generateUniqueCode(): Promise<string> {

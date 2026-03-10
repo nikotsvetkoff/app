@@ -16,6 +16,7 @@ const TOKEN_KEY = 'iptv:web-admin:token';
 const REMEMBER_ME_KEY = 'iptv:web-admin:remember-me';
 const REGISTER_RESEND_COOLDOWN_SEC = 60;
 const PLAYLIST_FILE_MAX_BYTES = 2_000_000;
+const EPG_GZIP_FILE_MAX_BYTES = 80_000_000;
 const SUBSCRIBER_SOURCE_SELECTION_VALUE = 'SOURCE:';
 
 type StatusTone = 'idle' | 'ok' | 'error';
@@ -59,6 +60,8 @@ interface PairedDeviceItem {
   id: string;
   name: string;
   platform: string;
+  macAddress: string | null;
+  ipAddress: string | null;
   pairedAt: string | null;
   lastSeenAt: string | null;
   clientId: string | null;
@@ -87,6 +90,26 @@ interface PlaylistStatusItem {
   activeCustomPlaylistId: string | null;
   activeCustomPlaylistName: string | null;
   activeChannelsCount: number;
+}
+
+interface EpgStatusItem {
+  mode: string;
+  sourceUrl: string | null;
+  sourceLastIngestedAt: string | null;
+  sourceLastError: string | null;
+  sourceUpdatedAt: string | null;
+  snapshotUpdatedAt: string | null;
+  snapshotGeneratedAt: string | null;
+  snapshotChannels: number;
+  snapshotLastSuccessfulIngest: string | null;
+}
+
+interface EpgUploadResult {
+  success: true;
+  sourceUrl: string;
+  fileName: string;
+  snapshotGeneratedAt: string;
+  snapshotChannels: number;
 }
 
 interface BasePlaylistItem {
@@ -158,7 +181,7 @@ type AuditOutcome = 'success' | 'error';
 type LandingTile = 'playlists' | 'devices' | 'cabinet' | 'how';
 type StudioSection = 'admins' | 'forms' | 'playlists' | 'constructor' | 'account' | 'logs';
 type AddMenuItem = 'playlist' | 'subscriber';
-type PlaylistsSubMenuItem = 'base' | 'modified';
+type PlaylistsSubMenuItem = 'base' | 'modified' | 'epg';
 
 const HELP_TEXT: Record<FocusTopic, string> = {
   account:
@@ -326,6 +349,15 @@ const formatDateTime = (value: string | null): string => {
     hour: '2-digit',
     minute: '2-digit'
   });
+};
+
+const formatIdentityValue = (value: string | null): string => {
+  const normalized = (value ?? '').trim();
+  return normalized || '-';
+};
+
+const formatDeviceIdentity = (device: PairedDeviceItem): string => {
+  return `${device.platform} | MAC: ${formatIdentityValue(device.macAddress)} | IP: ${formatIdentityValue(device.ipAddress)}`;
 };
 
 const sortClients = (rows: ClientItem[]): ClientItem[] => {
@@ -652,6 +684,10 @@ export const App: React.FC = () => {
   const [playlistUrl, setPlaylistUrl] = useState('');
   const [playlistFile, setPlaylistFile] = useState<File | null>(null);
   const [playlistFileInputVersion, setPlaylistFileInputVersion] = useState(0);
+  const [epgGzipFile, setEpgGzipFile] = useState<File | null>(null);
+  const [epgFileInputVersion, setEpgFileInputVersion] = useState(0);
+  const [epgSourceUrl, setEpgSourceUrl] = useState('');
+  const [epgStatus, setEpgStatus] = useState<EpgStatusItem | null>(null);
   const [playlistStatus, setPlaylistStatus] = useState<PlaylistStatusItem | null>(null);
   const [basePlaylists, setBasePlaylists] = useState<BasePlaylistItem[]>([]);
   const [playlistChannels, setPlaylistChannels] = useState<PlaylistChannelItem[]>([]);
@@ -686,6 +722,7 @@ export const App: React.FC = () => {
   const [adminsBusy, setAdminsBusy] = useState(false);
   const [devicesBusy, setDevicesBusy] = useState(false);
   const [playlistBusy, setPlaylistBusy] = useState(false);
+  const [epgBusy, setEpgBusy] = useState(false);
   const [landingAuthOpen, setLandingAuthOpen] = useState(false);
   const [landingActiveTile, setLandingActiveTile] = useState<LandingTile>('how');
   const [landingMenuOpen, setLandingMenuOpen] = useState(false);
@@ -1211,6 +1248,12 @@ export const App: React.FC = () => {
     });
   }, []);
 
+  const fetchEpgStatus = useCallback((authToken: string): Promise<EpgStatusItem> => {
+    return fetchJson<EpgStatusItem>(`${API_BASE}/epg/status`, {
+      headers: { Authorization: `Bearer ${authToken}` }
+    });
+  }, []);
+
   const fetchSourceChannels = useCallback((authToken: string): Promise<PlaylistChannelItem[]> => {
     return fetchJson<PlaylistChannelItem[]>(`${API_BASE}/playlist/channels`, {
       headers: { Authorization: `Bearer ${authToken}` }
@@ -1393,6 +1436,29 @@ export const App: React.FC = () => {
     ]
   );
 
+  const loadEpgStatus = useCallback(
+    async (overrideToken?: string, notify = false): Promise<void> => {
+      setEpgBusy(true);
+      try {
+        const authToken = requireToken(overrideToken);
+        const status = await fetchEpgStatus(authToken);
+        setEpgStatus(status);
+        setEpgSourceUrl(/^https?:\/\//i.test(status.sourceUrl ?? '') ? (status.sourceUrl ?? '') : '');
+
+        if (notify) {
+          setStatusTone('ok');
+          setStatusMessage('EPG status actualizat.');
+          setFocusTopic('sources');
+        }
+      } catch (error) {
+        reportError(error);
+      } finally {
+        setEpgBusy(false);
+      }
+    },
+    [fetchEpgStatus, reportError, requireToken]
+  );
+
   const loadAuditLogs = useCallback(
     async (
       overrideToken?: string,
@@ -1425,6 +1491,7 @@ export const App: React.FC = () => {
       setLandingPlaylistsPageOpen(false);
       setLandingSubscribersPageOpen(false);
       setAddMenuItem('playlist');
+      setPlaylistsSubMenuItem('base');
       setClients([]);
       setAdmins([]);
       setAdminSearchQuery('');
@@ -1454,6 +1521,10 @@ export const App: React.FC = () => {
       setPlaylistUrl('');
       setPlaylistFile(null);
       setPlaylistFileInputVersion((value) => value + 1);
+      setEpgGzipFile(null);
+      setEpgFileInputVersion((value) => value + 1);
+      setEpgSourceUrl('');
+      setEpgStatus(null);
       clearCustomPlaylistEditor();
       setNewCustomPlaylistName('');
       setPlaylistSourceSearch('');
@@ -1471,7 +1542,8 @@ export const App: React.FC = () => {
     void loadAdmins(token);
     void loadDevices(token);
     void loadPlaylistWorkspace(token);
-  }, [clearCustomPlaylistEditor, loadAdmins, loadClients, loadDevices, loadPlaylistWorkspace, token]);
+    void loadEpgStatus(token);
+  }, [clearCustomPlaylistEditor, loadAdmins, loadClients, loadDevices, loadEpgStatus, loadPlaylistWorkspace, token]);
 
   useEffect(() => {
     if (!token) {
@@ -2612,6 +2684,105 @@ export const App: React.FC = () => {
     }
   };
 
+  const uploadEpgGzipFile = async () => {
+    try {
+      if (!epgGzipFile) {
+        throw new Error('Selecteaza fisierul EPG .gz.');
+      }
+      if (epgGzipFile.size > EPG_GZIP_FILE_MAX_BYTES) {
+        throw new Error('Fisierul EPG este prea mare. Maxim 80 MB.');
+      }
+      if (!epgGzipFile.name.toLowerCase().endsWith('.gz')) {
+        throw new Error('Fisierul EPG trebuie sa fie .gz.');
+      }
+
+      const authToken = requireToken();
+      setEpgBusy(true);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 120_000);
+
+      let result: EpgUploadResult | null = null;
+      try {
+        const formData = new FormData();
+        formData.set('file', epgGzipFile, epgGzipFile.name || 'epg-upload.xml.gz');
+
+        const response = await fetch(`${API_BASE}/epg/upload-gz`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${authToken}`
+          },
+          body: formData,
+          signal: controller.signal
+        });
+
+        if (!response.ok) {
+          const text = await response.text();
+          throw new Error(text || `HTTP ${response.status}`);
+        }
+
+        result = (await response.json()) as EpgUploadResult;
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') {
+          throw new Error('Timeout la upload EPG. Incearca din nou.');
+        }
+
+        if (error instanceof TypeError) {
+          throw new Error(`Nu s-a putut conecta la API: ${API_BASE}/epg/upload-gz`);
+        }
+
+        throw error;
+      } finally {
+        clearTimeout(timeout);
+      }
+
+      await loadEpgStatus(authToken);
+      setEpgGzipFile(null);
+      setEpgFileInputVersion((value) => value + 1);
+
+      setStatusTone('ok');
+      setStatusMessage(
+        result
+          ? `EPG incarcat: ${result.snapshotChannels} canale (${result.fileName}).`
+          : 'EPG incarcat din fisier.'
+      );
+      setFocusTopic('sources');
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setEpgBusy(false);
+    }
+  };
+
+  const saveEpgSourceUrl = async () => {
+    try {
+      const normalizedUrl = epgSourceUrl.trim();
+      if (!normalizedUrl) {
+        throw new Error('Introdu URL-ul EPG.');
+      }
+      if (countHttpSchemes(normalizedUrl) > 1) {
+        throw new Error('URL-ul EPG trebuie sa contina un singur link complet.');
+      }
+
+      const authToken = requireToken();
+      setEpgBusy(true);
+      await fetchJson<{ success: true }>(`${API_BASE}/epg/set-url`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${authToken}` },
+        body: JSON.stringify({ url: normalizedUrl })
+      });
+
+      await loadEpgStatus(authToken);
+      setStatusTone('ok');
+      setStatusMessage('URL-ul EPG a fost salvat.');
+      setFocusTopic('sources');
+    } catch (error) {
+      reportError(error);
+    } finally {
+      setEpgBusy(false);
+    }
+  };
+
   const refreshBasePlaylist = async (playlistId: string, playlistName: string): Promise<void> => {
     try {
       const authToken = requireToken();
@@ -3057,6 +3228,7 @@ export const App: React.FC = () => {
 
     if (token) {
       void loadPlaylistWorkspace(token);
+      void loadEpgStatus(token);
     }
   };
 
@@ -3942,7 +4114,10 @@ export const App: React.FC = () => {
                                 <article key={device.id} className="wa-base-devices-item">
                                   <p className="wa-base-devices-item-name">{device.name}</p>
                                   <p className="wa-base-devices-item-meta">
-                                    {device.platform} | {device.clientName || 'без абонента'}
+                                    {formatDeviceIdentity(device)}
+                                  </p>
+                                  <p className="wa-base-devices-item-meta">
+                                    Client: {device.clientName || 'без абонента'}
                                   </p>
                                   <p className="wa-base-devices-item-meta">
                                     Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
@@ -4462,7 +4637,7 @@ export const App: React.FC = () => {
                 setStudioSection('playlists');
                 setFocusTopic('sources');
                 if (token) {
-                  void loadPlaylistWorkspace(token);
+                  void Promise.all([loadPlaylistWorkspace(token), loadEpgStatus(token)]);
                 }
               }}
             >
@@ -4521,7 +4696,7 @@ export const App: React.FC = () => {
               {studioSection === 'forms'
                 ? 'Toate formularele de adaugare intr-un singur loc.'
                 : studioSection === 'playlists'
-                ? 'Vizualizare separata pentru playlisturi de baza si modificate.'
+                ? 'Vizualizare separata pentru playlisturi de baza, modificate si EPG.'
                 : studioSection === 'constructor'
                 ? 'Construieste un playlist nou din canalele selectate din sursele de baza.'
                 : studioSection === 'account'
@@ -5102,6 +5277,13 @@ export const App: React.FC = () => {
                 >
                   Playlisturi modificate
                 </button>
+                <button
+                  type="button"
+                  className={playlistsSubMenuItem === 'epg' ? 'wa-playlists-submenu-item is-active' : 'wa-playlists-submenu-item'}
+                  onClick={() => setPlaylistsSubMenuItem('epg')}
+                >
+                  EPG
+                </button>
               </div>
 
               <section className="wa-base-playlists-panel" style={playlistsSubMenuItem === 'base' ? undefined : { display: 'none' }}>
@@ -5173,6 +5355,77 @@ export const App: React.FC = () => {
                     ))}
                   </div>
                 )}
+              </section>
+
+              <section className="wa-base-playlists-panel" style={playlistsSubMenuItem === 'epg' ? undefined : { display: 'none' }}>
+                <h3 className="wa-base-playlists-panel-title">EPG separat</h3>
+                <p className="wa-base-playlists-meta">
+                  Sectiune separata pentru EPG: setezi URL-ul EPG sau faci upload manual `.gz`.
+                </p>
+                <p className="wa-base-playlists-meta">Sursa curenta: {epgStatus?.sourceUrl ?? '-'}</p>
+                <p className="wa-base-playlists-meta">
+                  Ultimul ingest: {formatDateTime(epgStatus?.sourceLastIngestedAt ?? null)} | Snapshot canale:{' '}
+                  {epgStatus?.snapshotChannels ?? 0}
+                </p>
+                <p className="wa-base-playlists-meta">
+                  Ultimul snapshot reusit: {formatDateTime(epgStatus?.snapshotLastSuccessfulIngest ?? null)}
+                </p>
+
+                {epgStatus?.sourceLastError ? (
+                  <p className="wa-base-playlists-error">Eroare EPG: {epgStatus.sourceLastError}</p>
+                ) : null}
+
+                <label className="wa-row">
+                  <span className="wa-label">URL EPG (xml/xml.gz)</span>
+                  <input
+                    className="wa-input"
+                    value={epgSourceUrl}
+                    onChange={(event) => setEpgSourceUrl(event.target.value)}
+                    placeholder="https://example.com/epg.xml.gz"
+                  />
+                </label>
+
+                <label className="wa-row">
+                  <span className="wa-label">Upload manual EPG (.gz)</span>
+                  <input
+                    key={`playlists-epg-file-${epgFileInputVersion}`}
+                    className="wa-input"
+                    type="file"
+                    accept=".gz,application/gzip,application/x-gzip"
+                    onChange={(event) => setEpgGzipFile(event.target.files?.[0] ?? null)}
+                  />
+                </label>
+                {epgGzipFile ? <p className="wa-base-playlists-meta">Fisier EPG selectat: {epgGzipFile.name}</p> : null}
+
+                <div className="wa-row wa-row--actions">
+                  <span className="wa-label">Actiuni EPG</span>
+                  <div className="wa-actions">
+                    <button
+                      type="button"
+                      className="wa-btn wa-btn--primary"
+                      onClick={() => void saveEpgSourceUrl()}
+                      disabled={epgBusy || !epgSourceUrl.trim()}
+                    >
+                      {epgBusy ? 'Salvare...' : 'Salveaza URL EPG'}
+                    </button>
+                    <button
+                      type="button"
+                      className="wa-btn"
+                      onClick={() => void uploadEpgGzipFile()}
+                      disabled={epgBusy || !epgGzipFile}
+                    >
+                      {epgBusy ? 'Upload...' : 'Upload EPG .gz'}
+                    </button>
+                    <button
+                      type="button"
+                      className="wa-btn"
+                      onClick={() => void loadEpgStatus(undefined, true)}
+                      disabled={epgBusy}
+                    >
+                      {epgBusy ? 'Verificare...' : 'Refresh EPG'}
+                    </button>
+                  </div>
+                </div>
               </section>
             </section>
 
@@ -5591,7 +5844,10 @@ export const App: React.FC = () => {
                                         <article key={device.id} className="wa-base-devices-item">
                                           <p className="wa-base-devices-item-name">{device.name}</p>
                                           <p className="wa-base-devices-item-meta">
-                                            {device.platform} | {device.clientName || 'fara abonat'}
+                                            {formatDeviceIdentity(device)}
+                                          </p>
+                                          <p className="wa-base-devices-item-meta">
+                                            Client: {device.clientName || 'fara abonat'}
                                           </p>
                                           <p className="wa-base-devices-item-meta">
                                             Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
@@ -5667,7 +5923,7 @@ export const App: React.FC = () => {
                       {pairedDevicesByClient.unassigned.map((device) => (
                         <article key={device.id} className="wa-base-devices-item">
                           <p className="wa-base-devices-item-name">{device.name}</p>
-                          <p className="wa-base-devices-item-meta">{device.platform}</p>
+                          <p className="wa-base-devices-item-meta">{formatDeviceIdentity(device)}</p>
                           <p className="wa-base-devices-item-meta">
                             Pair: {formatDateTime(device.pairedAt)} | Online: {formatDateTime(device.lastSeenAt)}
                           </p>

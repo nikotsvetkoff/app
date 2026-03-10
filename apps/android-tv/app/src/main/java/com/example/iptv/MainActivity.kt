@@ -18,7 +18,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,17 +44,22 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -226,13 +234,14 @@ class MainActivity : ComponentActivity() {
                 return emptyList()
             }
 
-            val tvgId = normalizeTvgId(channel.tvgId)
-            val fromDayGrid = if (tvgId.isBlank()) null else epgDayByTvgId[tvgId]
+            val nowNextItem = nowNextMap[channel.id]
+            val directTvgId = normalizeTvgId(channel.tvgId)
+            val resolvedTvgId = if (directTvgId.isNotBlank()) directTvgId else normalizeTvgId(nowNextItem?.channelTvgId)
+            val fromDayGrid = if (resolvedTvgId.isBlank()) null else epgDayByTvgId[resolvedTvgId]
             if (!fromDayGrid.isNullOrEmpty()) {
                 return fromDayGrid
             }
 
-            val nowNextItem = nowNextMap[channel.id]
             return listOfNotNull(nowNextItem?.now, nowNextItem?.next).sortedBy {
                 parseProgramTimestamp(it.start) ?: Long.MAX_VALUE
             }
@@ -998,11 +1007,12 @@ class MainActivity : ComponentActivity() {
                                 .background(Color(0xFF0F1728), RoundedCornerShape(12.dp))
                                 .padding(12.dp)
                         ) {
-                            Text("Categorii / Ghid", color = Color.White, style = MaterialTheme.typography.titleLarge)
-                            Text("${categories.getOrNull(selectedCategoryIndex)?.first ?: "-"} (${selectedCategoryIndex + 1}/${categories.size.coerceAtLeast(1)})", color = Color(0xFFD3E1EF))
-                            Text("${if (categoryChannels.isNotEmpty()) selectedIndex + 1 else 0} / ${categoryChannels.size}", color = Color(0xFFD3E1EF))
-                            Text("Focus timp: ${formatTimeFromTimestamp(guideFocusTimeMs)}", color = Color(0xFFD3E1EF))
-                            Text("LEFT/RIGHT categorie | REW/FF timp | ENTER live/arhiva", color = Color(0xFFBFD4ED))
+                            Text("TV Guide", color = Color.White, style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "${categories.getOrNull(selectedCategoryIndex)?.first ?: "-"} | CH ${if (categoryChannels.isNotEmpty()) selectedIndex + 1 else 0}/${categoryChannels.size} | Focus ${formatTimeFromTimestamp(guideFocusTimeMs)}",
+                                color = Color(0xFFD3E1EF)
+                            )
+                            Text("LEFT/RIGHT categorie | REW/FF timp | ENTER live/arhiva | Y favorite", color = Color(0xFFBFD4ED))
                             Text(
                                 "Program focus: ${selectedGuideProgram?.title ?: "EPG indisponibil"} (${formatProgramRange(selectedGuideProgram)})",
                                 color = Color.White
@@ -1012,11 +1022,48 @@ class MainActivity : ComponentActivity() {
                                 color = if (canPlaySelectedArchive) Color(0xFFFFDFA5) else Color(0xFFBFD4ED)
                             )
                             Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF173152))
+                                    .border(1.dp, Color(0xFF2E5A86), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    "Nr",
+                                    color = Color(0xFFE7F2FF),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.width(68.dp)
+                                )
+                                Text(
+                                    "Logo",
+                                    color = Color(0xFFE7F2FF),
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.width(108.dp)
+                                )
+                                Text(
+                                    "Canal",
+                                    color = Color(0xFFE7F2FF),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.width(300.dp)
+                                )
+                                Text(
+                                    "EPG",
+                                    color = Color(0xFFE7F2FF),
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
                             LazyColumn(modifier = Modifier.fillMaxWidth().weight(1f)) {
                                 itemsIndexed(visibleChannels) { index, channel ->
                                     val absoluteIndex = visibleStart + index
                                     val selected = absoluteIndex == selectedIndex
                                     val favorite = favorites.contains(channel.id)
+                                    val rowLogoUrl = (nowNextMap[channel.id]?.channelLogo ?: channel.logo).orEmpty().trim()
                                     val focusedProgram = getGuideProgramForChannel(channel)
                                     val focusedProgramEndMs = parseProgramTimestamp(focusedProgram?.end)
                                     val canArchive =
@@ -1028,26 +1075,84 @@ class MainActivity : ComponentActivity() {
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp)
+                                            .heightIn(min = 84.dp)
                                             .background(if (selected) Color(0xFF224164) else Color(0xFF16263B), RoundedCornerShape(10.dp))
                                             .border(if (selected) 2.dp else 1.dp, if (selected) Color(0xFFF4B447) else Color(0xFF2B3F56), RoundedCornerShape(10.dp))
                                             .clickable {
                                                 selectedIndex = absoluteIndex
                                             }
-                                            .padding(10.dp),
+                                            .padding(horizontal = 8.dp, vertical = 8.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(channel.name, color = Color.White)
-                                            Text(
-                                                "${focusedProgram?.title ?: "Fara EPG"} (${formatProgramRange(focusedProgram)})",
-                                                color = Color(0xFFD3E1EF)
-                                            )
-                                            if (canArchive) {
-                                                Text("ARHIVA", color = Color(0xFFFFDFA5), fontWeight = FontWeight.Bold)
+                                        Text(
+                                            (absoluteIndex + 1).toString(),
+                                            color = Color(0xFFEAF4FF),
+                                            fontWeight = FontWeight.ExtraBold,
+                                            modifier = Modifier.width(68.dp)
+                                        )
+                                        Box(
+                                            modifier = Modifier.width(108.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(52.dp)
+                                                    .clip(RoundedCornerShape(8.dp))
+                                                    .background(Color(0xFF0E1A2B))
+                                                    .border(1.dp, Color(0xFF34536F), RoundedCornerShape(8.dp)),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (rowLogoUrl.isNotBlank()) {
+                                                    AsyncImage(
+                                                        model = rowLogoUrl,
+                                                        contentDescription = "${channel.name} logo",
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = ContentScale.Fit
+                                                    )
+                                                } else {
+                                                    Text(
+                                                        (channel.name.firstOrNull()?.uppercase() ?: "?"),
+                                                        color = Color(0xFFDCEAFF),
+                                                        fontWeight = FontWeight.ExtraBold
+                                                    )
+                                                }
                                             }
                                         }
-                                        OutlinedButton(onClick = { favorites = store.toggleFavorite(channel.id) }) {
-                                            Text(if (favorite) "Fav" else "+Fav")
+                                        Text(
+                                            "${if (favorite) "★ " else ""}${channel.name}",
+                                            color = Color.White,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier
+                                                .width(300.dp)
+                                                .padding(horizontal = 8.dp)
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(0xFF102238))
+                                                .border(1.dp, Color(0xFF2C4864), RoundedCornerShape(8.dp))
+                                                .padding(horizontal = 10.dp, vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                focusedProgram?.title ?: "Fara EPG",
+                                                color = Color(0xFFEAF4FF),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            Text(
+                                                formatProgramRange(focusedProgram),
+                                                color = Color(0xFFBFD4ED),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                            if (canArchive) {
+                                                Text("  ARHIVA", color = Color(0xFFFFDFA5), fontWeight = FontWeight.Bold)
+                                            }
                                         }
                                     }
                                 }

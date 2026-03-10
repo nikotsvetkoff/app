@@ -40,6 +40,9 @@ export interface ClientPairingHistoryItem {
   lastSeenAt: string | null;
 }
 
+const stripDeviceIpTag = (deviceName: string): string =>
+  deviceName.replace(/\s*\[IP:\s*[^\]]+\]\s*$/i, '').trim();
+
 @Injectable()
 export class ClientsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
@@ -136,18 +139,18 @@ export class ClientsService {
     await this.assertClientOwner(userId, clientId);
 
     await this.prisma.$transaction([
-      this.prisma.device.updateMany({
+      this.prisma.pairingSession.deleteMany({
+        where: {
+          userId,
+          device: {
+            clientId
+          }
+        }
+      }),
+      this.prisma.device.deleteMany({
         where: {
           userId,
           clientId
-        },
-        data: {
-          userId: null,
-          clientId: null,
-          deviceToken: null,
-          pairedAt: null,
-          playlistMode: 'GLOBAL',
-          customPlaylistId: null
         }
       }),
       this.prisma.client.delete({
@@ -187,7 +190,7 @@ export class ClientsService {
       pairingId: row.id,
       code: row.code,
       deviceId: row.device.id,
-      deviceName: row.device.name,
+      deviceName: stripDeviceIpTag(row.device.name),
       platform: row.device.platform,
       pairedAt: (row.confirmedAt ?? row.device.pairedAt ?? row.createdAt).toISOString(),
       lastSeenAt: row.device.lastSeenAt ? row.device.lastSeenAt.toISOString() : null

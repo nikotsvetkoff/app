@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Inject, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Post,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { EpgService } from './epg.service';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
@@ -20,5 +30,28 @@ export class EpgController {
   @Get('status')
   status(@CurrentUser() user: { sub: string }) {
     return this.epgService.getEpgStatus(user.sub);
+  }
+
+  @Post('upload-gz')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: 80_000_000
+      }
+    })
+  )
+  uploadGz(
+    @CurrentUser() user: { sub: string },
+    @UploadedFile()
+    file?:
+      | {
+          buffer: Buffer;
+          originalname?: string;
+          size?: number;
+          mimetype?: string;
+        }
+      | undefined
+  ) {
+    return this.epgService.uploadXmlTvGzip(user.sub, file);
   }
 }

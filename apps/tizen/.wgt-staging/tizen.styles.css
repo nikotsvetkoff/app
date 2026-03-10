@@ -210,6 +210,24 @@ button:focus {
   max-width: none;
 }
 
+.screen__buffering {
+  position: absolute;
+  right: clamp(18px, 2.2vw, 34px);
+  bottom: clamp(18px, 2.4vw, 34px);
+  z-index: 6;
+  pointer-events: none;
+  border-radius: 999px;
+  border: 1px solid rgba(132, 176, 220, 0.58);
+  background: rgba(6, 14, 25, 0.86);
+  color: #e6f2ff;
+  font-size: clamp(16px, 1.1vw, 22px);
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  padding: 8px 14px;
+  text-shadow: var(--player-text-shadow-soft);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
+}
+
 .screen__channel-info {
   --channel-logo-size: calc(var(--player-logo-size) * 0.82);
   --channel-logo-radius: var(--player-logo-radius);

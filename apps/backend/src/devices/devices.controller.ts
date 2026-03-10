@@ -7,17 +7,20 @@ import {
   ParseUUIDPipe,
   Patch,
   Post,
+  Req,
   Query,
   UseGuards
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { DevicesService } from './devices.service';
 import { PairStartDto } from './dto/pair-start.dto';
 import { PairConfirmDto } from './dto/pair-confirm.dto';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { CurrentUser } from '../common/request-context';
 import { UpdateDevicePlaylistDto } from './dto/update-device-playlist.dto';
+import { getClientIpFromRequest } from '../common/client-ip.util';
 
 @ApiTags('devices')
 @Controller('devices')
@@ -26,8 +29,9 @@ export class DevicesController {
 
   @Throttle({ default: { limit: 20, ttl: 60000 } })
   @Post('pair/start')
-  start(@Body() dto: PairStartDto) {
-    return this.devicesService.startPairing(dto);
+  start(@Body() dto: PairStartDto, @Req() request: Request) {
+    const deviceIp = getClientIpFromRequest(request);
+    return this.devicesService.startPairing(dto, deviceIp ?? undefined);
   }
 
   @ApiBearerAuth()

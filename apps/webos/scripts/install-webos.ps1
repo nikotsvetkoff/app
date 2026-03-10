@@ -44,6 +44,51 @@ function Resolve-CliFlavor {
   return $null
 }
 
+function Get-PreferredLanIPv4 {
+  $collected = @()
+
+  try {
+    $defaultRoute = Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" -ErrorAction Stop |
+      Sort-Object RouteMetric, InterfaceMetric |
+      Select-Object -First 1
+    if ($defaultRoute) {
+      $fromRoute = Get-NetIPAddress -AddressFamily IPv4 -InterfaceIndex $defaultRoute.InterfaceIndex -ErrorAction SilentlyContinue |
+        Where-Object {
+          $_.IPAddress -and
+          $_.IPAddress -notlike "127.*" -and
+          $_.IPAddress -notlike "169.254.*"
+        } |
+        Select-Object -ExpandProperty IPAddress
+      $collected += $fromRoute
+    }
+  }
+  catch {
+    # ignore and continue with generic fallback below
+  }
+
+  try {
+    $allLan = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+      Where-Object {
+        $_.IPAddress -and
+        $_.IPAddress -notlike "127.*" -and
+        $_.IPAddress -notlike "169.254.*"
+      } |
+      Select-Object -ExpandProperty IPAddress
+    $collected += $allLan
+  }
+  catch {
+    # no-op
+  }
+
+  foreach ($candidate in ($collected | Where-Object { $_ } | Select-Object -Unique)) {
+    if ($candidate -match "^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)") {
+      return $candidate
+    }
+  }
+
+  return $null
+}
+
 $cliFlavor = Resolve-CliFlavor
 if (-not $cliFlavor) {
   throw "webOS CLI not found. Install @webos-tools/cli globally (npm i -g @webos-tools/cli)."
@@ -144,12 +189,36 @@ if ([string]::IsNullOrWhiteSpace($appId)) {
   throw "App id missing in appinfo.json."
 }
 
+$resolvedApiFallback = $env:VITE_API_BASE_FALLBACK_URL
+if ([string]::IsNullOrWhiteSpace($resolvedApiFallback)) {
+  $lanIp = Get-PreferredLanIPv4
+  if (-not [string]::IsNullOrWhiteSpace($lanIp)) {
+    $resolvedApiFallback = "http://$lanIp`:3000"
+  }
+}
+
 Push-Location $repoDir
 try {
   if (-not $SkipBuild) {
-    corepack pnpm -r --filter @iptv/webos... build
-    if ($LASTEXITCODE -ne 0) {
-      throw "Build failed for @iptv/webos."
+    $previousApiFallback = $env:VITE_API_BASE_FALLBACK_URL
+    try {
+      if (-not [string]::IsNullOrWhiteSpace($resolvedApiFallback)) {
+        $env:VITE_API_BASE_FALLBACK_URL = $resolvedApiFallback
+        Write-Host "Using VITE_API_BASE_FALLBACK_URL=$resolvedApiFallback"
+      }
+
+      corepack pnpm -r --filter @iptv/webos... build
+      if ($LASTEXITCODE -ne 0) {
+        throw "Build failed for @iptv/webos."
+      }
+    }
+    finally {
+      if ($null -eq $previousApiFallback) {
+        Remove-Item Env:VITE_API_BASE_FALLBACK_URL -ErrorAction SilentlyContinue
+      }
+      else {
+        $env:VITE_API_BASE_FALLBACK_URL = $previousApiFallback
+      }
     }
   }
 

@@ -113,6 +113,14 @@ const DEFAULT_API_BASE = import.meta.env.VITE_API_BASE_URL ?? LAN_FALLBACK_API_B
 const OVERRIDE_WEB_ADMIN_BASE = import.meta.env.VITE_WEB_ADMIN_URL;
 const REQUEST_TIMEOUT_MS = 9000;
 const FETCH_ERROR_MESSAGE = 'failed to fetch';
+const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
+const API_BASE_HINTS = [
+  'http://10.0.0.247:3000',
+  'http://10.0.0.246:3000',
+  'http://192.168.100.4:3000',
+  'http://10.0.2.2:3000',
+  'http://172.17.0.1:3000'
+];
 
 const AUDIO_ONLY_DETECT_MS = 2500;
 const CHANNEL_NUMBER_INPUT_TIMEOUT_MS = 1200;
@@ -204,6 +212,46 @@ const findGuideProgramAtTime = (programs: EpgProgramItem[], timestamp: number): 
     findNextProgramAtTime(programs, timestamp) ??
     programs[programs.length - 1]
   );
+};
+
+const resolveDisplayNowNext = (
+  programs: EpgProgramItem[],
+  timestamp: number
+): { now?: EpgProgramItem; next?: EpgProgramItem; nowLabel: string } => {
+  if (programs.length === 0) {
+    return { now: undefined, next: undefined, nowLabel: 'Acum' };
+  }
+
+  const activeIndex = programs.findIndex((program) => {
+    const start = parseProgramTimestamp(program.start);
+    const end = parseProgramTimestamp(program.end);
+    return typeof start === 'number' && typeof end === 'number' && timestamp >= start && timestamp < end;
+  });
+  if (activeIndex >= 0) {
+    return {
+      now: programs[activeIndex],
+      next: programs[activeIndex + 1],
+      nowLabel: 'Acum'
+    };
+  }
+
+  const nextIndex = programs.findIndex((program) => {
+    const start = parseProgramTimestamp(program.start);
+    return typeof start === 'number' && start >= timestamp;
+  });
+  if (nextIndex >= 0) {
+    return {
+      now: programs[nextIndex],
+      next: programs[nextIndex + 1],
+      nowLabel: 'Program'
+    };
+  }
+
+  return {
+    now: programs[programs.length - 1],
+    next: undefined,
+    nowLabel: 'Ultimul'
+  };
 };
 
 const getGuideWindowStart = (timestampMs: number): number => {
@@ -491,24 +539,60 @@ const removeStorageValue = (key: string): void => {
   }
 };
 
+const appendApiBaseCandidate = (list: string[], value?: string, allowLoopback = false): void => {
+  if (!value) {
+    return;
+  }
+
+  const normalized = normalizeBaseUrl(value);
+  if (!normalized) {
+    return;
+  }
+
+  try {
+    const parsed = new URL(normalized);
+    if (!allowLoopback && LOOPBACK_HOSTS.has(parsed.hostname)) {
+      return;
+    }
+
+    const candidate = `${parsed.protocol}//${parsed.host}`;
+    if (!list.includes(candidate)) {
+      list.push(candidate);
+    }
+    return;
+  } catch {
+    if (!list.includes(normalized)) {
+      list.push(normalized);
+    }
+  }
+};
+
+const buildApiBaseCandidates = (preferredBase?: string): string[] => {
+  const candidates: string[] = [];
+
+  appendApiBaseCandidate(candidates, preferredBase);
+  appendApiBaseCandidate(candidates, getStorageValue(API_BASE_KEY));
+  appendApiBaseCandidate(candidates, DEFAULT_API_BASE);
+  appendApiBaseCandidate(candidates, LAN_FALLBACK_API_BASE);
+
+  if (typeof window !== 'undefined') {
+    const host = (window.location.hostname || '').trim();
+    if (host && !LOOPBACK_HOSTS.has(host)) {
+      appendApiBaseCandidate(candidates, `http://${host}:3000`);
+    }
+  }
+
+  for (const hint of API_BASE_HINTS) {
+    appendApiBaseCandidate(candidates, hint, true);
+  }
+
+  return candidates;
+};
+
 const getInitialApiBase = (): string => {
   const fallback = normalizeBaseUrl(DEFAULT_API_BASE);
-  const stored = getStorageValue(API_BASE_KEY);
-  if (!stored) {
-    return fallback;
-  }
-
-  const normalized = normalizeBaseUrl(stored);
-  if (!normalized) {
-    return fallback;
-  }
-
-  // webOS app runs on TV, so localhost usually points to TV itself, not backend PC.
-  if (normalized.includes('://localhost') || normalized.includes('://127.0.0.1')) {
-    return fallback;
-  }
-
-  return normalized;
+  const candidates = buildApiBaseCandidates(DEFAULT_API_BASE);
+  return candidates[0] ?? fallback;
 };
 
 const getWebAdminBase = (apiBase: string): string => {
@@ -782,21 +866,20 @@ export const WebOsApp: React.FC = () => {
   const playingChannelNowNext = useMemo(() => {
     return getNowNextForChannel(playingChannel);
   }, [getNowNextForChannel, playingChannel]);
-  const playingNowProgram = playingChannelNowNext?.now;
-  const playingNextProgram = playingChannelNowNext?.next;
   const getProgramsForChannel = useCallback(
     (channel?: Channel): EpgProgramItem[] => {
       if (!channel) {
         return [];
       }
 
-      const tvgId = normalizeTvgId(channel.tvgId);
-      const fromDayGrid = tvgId ? epgDayByTvgId[tvgId] : undefined;
+      const nowNext = getNowNextForChannel(channel);
+      const directTvgId = normalizeTvgId(channel.tvgId);
+      const resolvedTvgId = directTvgId || normalizeTvgId(nowNext?.channelTvgId);
+      const fromDayGrid = resolvedTvgId ? epgDayByTvgId[resolvedTvgId] : undefined;
       if (Array.isArray(fromDayGrid) && fromDayGrid.length > 0) {
         return fromDayGrid;
       }
 
-      const nowNext = getNowNextForChannel(channel);
       const fallback = [nowNext?.now, nowNext?.next].filter(Boolean) as EpgProgramItem[];
       if (!fallback.length) {
         return [];
@@ -828,6 +911,17 @@ export const WebOsApp: React.FC = () => {
     [getProgramsForChannel, guideFocusTimeMs]
   );
   const nowMs = Date.now();
+  const playingChannelPrograms = useMemo(
+    () => getProgramsForChannel(playingChannel),
+    [getProgramsForChannel, playingChannel]
+  );
+  const playingProgramFallback = useMemo(
+    () => resolveDisplayNowNext(playingChannelPrograms, nowMs),
+    [nowMs, playingChannelPrograms]
+  );
+  const playingNowProgram = playingChannelNowNext?.now ?? playingProgramFallback.now;
+  const playingNextProgram = playingChannelNowNext?.next ?? playingProgramFallback.next;
+  const playingNowLabel = playingChannelNowNext?.now ? 'Acum' : playingProgramFallback.nowLabel;
   const guideWindowEndMs = guideWindowStartMs + GUIDE_TIMELINE_WINDOW_MS;
   const guideTickMarks = useMemo(() => {
     const ticks: Array<{ timeMs: number; leftPct: number; label: string }> = [];
@@ -1149,11 +1243,7 @@ export const WebOsApp: React.FC = () => {
 
   const probeStoredDeviceToken = useCallback(
     async (token: string): Promise<{ invalid: boolean; resolvedBase?: string }> => {
-      const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-      const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-      if (!candidates.includes(fallbackBase)) {
-        candidates.push(fallbackBase);
-      }
+      const candidates = buildApiBaseCandidates(apiBase);
 
       for (const candidateBase of candidates) {
         try {
@@ -1192,11 +1282,7 @@ export const WebOsApp: React.FC = () => {
   const restoreTokenByMacAddress = useCallback(
     async (macAddress?: string): Promise<{ deviceToken?: string; deviceName?: string; resolvedBase?: string }> => {
       const normalizedMac = (macAddress ?? '').trim();
-      const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-      const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-      if (!candidates.includes(fallbackBase)) {
-        candidates.push(fallbackBase);
-      }
+      const candidates = buildApiBaseCandidates(apiBase);
 
       for (const candidateBase of candidates) {
         try {
@@ -1234,11 +1320,7 @@ export const WebOsApp: React.FC = () => {
         return;
       }
 
-      const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-      const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-      if (!candidates.includes(fallbackBase)) {
-        candidates.push(fallbackBase);
-      }
+      const candidates = buildApiBaseCandidates(apiBase);
 
       let response: EpgNowNextResponse | undefined;
       let usedBase = candidates[0];
@@ -1293,11 +1375,7 @@ export const WebOsApp: React.FC = () => {
         return;
       }
 
-      const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-      const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-      if (!candidates.includes(fallbackBase)) {
-        candidates.push(fallbackBase);
-      }
+      const candidates = buildApiBaseCandidates(apiBase);
 
       let response: EpgDayResponse | undefined;
       let usedBase = candidates[0];
@@ -1365,11 +1443,7 @@ export const WebOsApp: React.FC = () => {
 
   const loadPlaylist = useCallback(
     async (token: string) => {
-      const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-      const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-      if (!candidates.includes(fallbackBase)) {
-        candidates.push(fallbackBase);
-      }
+      const candidates = buildApiBaseCandidates(apiBase);
 
       let response: PlaylistResponse | undefined;
       let usedBase = candidates[0];
@@ -1488,11 +1562,7 @@ export const WebOsApp: React.FC = () => {
     setDeviceMacAddress(macAddress);
     const deviceName = macAddress ? `LG webOS TV [${macAddress}]` : 'LG webOS TV';
 
-    const fallbackBase = normalizeBaseUrl(LAN_FALLBACK_API_BASE);
-    const candidates = [normalizeBaseUrl(apiBase)].filter(Boolean);
-    if (!candidates.includes(fallbackBase)) {
-      candidates.push(fallbackBase);
-    }
+    const candidates = buildApiBaseCandidates(apiBase);
 
     let started: PairStartResponse | undefined;
     let usedBase = candidates[0];
@@ -1515,7 +1585,8 @@ export const WebOsApp: React.FC = () => {
     }
 
     if (!started) {
-      throw lastError instanceof Error ? lastError : new Error(FETCH_ERROR_MESSAGE);
+      const detail = lastError instanceof Error ? lastError.message : String(lastError ?? '');
+      throw new Error(`${FETCH_ERROR_MESSAGE}. tried: ${candidates.join(' | ')}. last: ${detail}`);
     }
 
     if (usedBase !== apiBase) {
@@ -2348,7 +2419,7 @@ export const WebOsApp: React.FC = () => {
                     {playingChannel?.name || (channels.length === 0 ? 'Player activ' : 'Canal neselectat')}
                   </p>
                   <p className="screen__channel-epg-line">
-                    <span className="screen__channel-epg-label">Acum</span>
+                    <span className="screen__channel-epg-label">{playingNowLabel}</span>
                     <span className="screen__channel-epg-title">{playingNowProgram?.title ?? 'EPG indisponibil'}</span>
                     <span className="screen__channel-epg-time">{formatProgramRange(playingNowProgram)}</span>
                   </p>
