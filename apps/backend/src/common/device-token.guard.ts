@@ -7,6 +7,17 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { RequestWithContext } from './request-context';
+import { getClientIpFromRequest, withDeviceIpTag } from './client-ip.util';
+
+const stripDeviceIpTag = (value: string): string => value.replace(/\s*\[IP:\s*[^\]]+\]\s*$/i, '').trim();
+
+const normalizeDeviceNameHeader = (value?: string): string | undefined => {
+  const normalized = (value ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .slice(0, 64);
+  return normalized || undefined;
+};
 
 @Injectable()
 export class DeviceTokenGuard implements CanActivate {
@@ -14,16 +25,22 @@ export class DeviceTokenGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<RequestWithContext>();
+    const requestIp = getClientIpFromRequest(request);
     const tokenHeader =
       request.headers['x-device-token'] ?? request.headers['X-Device-Token'.toLowerCase()];
+    const nameHeader =
+      request.headers['x-device-name'] ?? request.headers['X-Device-Name'.toLowerCase()];
     const bearerHeader = request.headers.authorization;
 
     const token =
       (Array.isArray(tokenHeader) ? tokenHeader[0] : tokenHeader) ??
       (bearerHeader?.startsWith('Bearer ') ? bearerHeader.slice(7) : undefined);
+    const requestedDeviceName = normalizeDeviceNameHeader(
+      (Array.isArray(nameHeader) ? nameHeader[0] : nameHeader) as string | undefined
+    );
 
     if (!token) {
-      throw new UnauthorizedException('Токен устройства отсутствует');
+      throw new UnauthorizedException('Device token is missing');
     }
 
     const devTestToken = process.env.DEV_TEST_DEVICE_TOKEN?.trim();
@@ -49,20 +66,26 @@ export class DeviceTokenGuard implements CanActivate {
 
       if (!latestPairedDevice || !latestPairedDevice.userId) {
         throw new UnauthorizedException(
-          'Тестовый токен недоступен: сначала привяжите хотя бы одно устройство.'
+          'Test token is unavailable until at least one paired device exists'
         );
       }
+      const normalizedName =
+        requestedDeviceName || stripDeviceIpTag(latestPairedDevice.name) || latestPairedDevice.name;
+      const storedName = withDeviceIpTag(normalizedName, requestIp);
 
       request.device = {
         id: latestPairedDevice.id,
         userId: latestPairedDevice.userId,
-        name: latestPairedDevice.name,
+        name: normalizedName,
         platform: latestPairedDevice.platform
       };
 
       await this.prisma.device.update({
         where: { id: latestPairedDevice.id },
-        data: { lastSeenAt: new Date() }
+        data: {
+          lastSeenAt: new Date(),
+          ...(storedName !== latestPairedDevice.name ? { name: storedName } : {})
+        }
       });
 
       return true;
@@ -73,19 +96,25 @@ export class DeviceTokenGuard implements CanActivate {
     });
 
     if (!device || !device.userId) {
-      throw new UnauthorizedException('Недействительный токен устройства');
+      throw new UnauthorizedException('Invalid device token');
     }
+
+    const normalizedName = requestedDeviceName || stripDeviceIpTag(device.name) || device.name;
+    const storedName = withDeviceIpTag(normalizedName, requestIp);
 
     request.device = {
       id: device.id,
       userId: device.userId,
-      name: device.name,
+      name: normalizedName,
       platform: device.platform
     };
 
     await this.prisma.device.update({
       where: { id: device.id },
-      data: { lastSeenAt: new Date() }
+      data: {
+        lastSeenAt: new Date(),
+        ...(storedName !== device.name ? { name: storedName } : {})
+      }
     });
 
     return true;

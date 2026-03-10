@@ -4,6 +4,9 @@
   <content src="index.html" />
   <access origin="*" subdomains="true" />
   <feature name="http://tizen.org/feature/screen.size.all" />
+  <tizen:privilege name="http://tizen.org/privilege/network.get" />
+  <tizen:privilege name="http://tizen.org/privilege/systeminfo" />
+  <tizen:privilege name="http://tizen.org/privilege/productinfo" />
   <name>Appk</name>
   <icon src="icon.png" />
   <tizen:profile name="tv" />
