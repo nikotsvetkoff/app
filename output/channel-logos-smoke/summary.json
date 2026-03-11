@@ -1,0 +1,10 @@
+{
+  "source": "backup-cache:Moldovenesti",
+  "backup": "apps/backend/data/backups/backup-2026-03-10T08-29-09.277Z-auto-scheduled.json",
+  "channelsTotal": 8,
+  "savedLogos": 1,
+  "missingLogos": 7,
+  "elapsedSec": 0.96,
+  "reportJson": "output/channel-logos-smoke/report.json",
+  "reportCsv": "output/channel-logos-smoke/report.csv"
+}

@@ -61,6 +61,7 @@ interface PairedDeviceItem {
   name: string;
   platform: string;
   macAddress: string | null;
+  fingerprint: string | null;
   ipAddress: string | null;
   pairedAt: string | null;
   lastSeenAt: string | null;
@@ -357,7 +358,9 @@ const formatIdentityValue = (value: string | null): string => {
 };
 
 const formatDeviceIdentity = (device: PairedDeviceItem): string => {
-  return `${device.platform} | MAC: ${formatIdentityValue(device.macAddress)} | IP: ${formatIdentityValue(device.ipAddress)}`;
+  const macLabel = formatIdentityValue(device.macAddress);
+  const idLabel = formatIdentityValue(device.fingerprint);
+  return `${device.platform} | MAC: ${macLabel} | ID: ${idLabel} | IP: ${formatIdentityValue(device.ipAddress)}`;
 };
 
 const sortClients = (rows: ClientItem[]): ClientItem[] => {
@@ -2758,10 +2761,7 @@ export const App: React.FC = () => {
     try {
       const normalizedUrl = epgSourceUrl.trim();
       if (!normalizedUrl) {
-        throw new Error('Introdu URL-ul EPG.');
-      }
-      if (countHttpSchemes(normalizedUrl) > 1) {
-        throw new Error('URL-ul EPG trebuie sa contina un singur link complet.');
+        throw new Error('Introdu cel putin un URL EPG.');
       }
 
       const authToken = requireToken();
@@ -5376,13 +5376,17 @@ export const App: React.FC = () => {
                 ) : null}
 
                 <label className="wa-row">
-                  <span className="wa-label">URL EPG (xml/xml.gz)</span>
-                  <input
+                  <span className="wa-label">URL EPG (xml/xml.gz, unul sau mai multe)</span>
+                  <textarea
                     className="wa-input"
                     value={epgSourceUrl}
                     onChange={(event) => setEpgSourceUrl(event.target.value)}
-                    placeholder="https://example.com/epg.xml.gz"
+                    placeholder={'https://example.com/epg.xml.gz\nhttps://iptv-epg.org/guides'}
+                    rows={4}
                   />
+                  <span className="wa-base-playlists-meta">
+                    Pune cate un URL pe linie pentru acoperire mai mare.
+                  </span>
                 </label>
 
                 <label className="wa-row">

@@ -1,1 +1,126 @@
 Swagger disabled: Cannot read properties of undefined (reading '0')
+[31m[Nest] 25948  - [39m11.03.2026, 09:43:11 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.[39m
+PrismaClientUnknownRequestError: 
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.
+    at $n.handleRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7505)
+    at $n.handleAndLogRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async EpgService.getProgramsAndLogosFromOttCatalog (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:26)
+    at async EpgService.getDayGridForDevice (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:524:26)
+    at async DeviceApiController.day (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\device\device-api.controller.ts:44:19)
+[31m[Nest] 25948  - [39m11.03.2026, 09:43:13 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.[39m
+PrismaClientUnknownRequestError: 
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.
+    at $n.handleRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7505)
+    at $n.handleAndLogRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async EpgService.getProgramsAndLogosFromOttCatalog (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:26)
+    at async EpgService.getNowNextForDevice (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:463:21)
+    at async DeviceApiController.nowNext (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\device\device-api.controller.ts:37:19)
+[31m[Nest] 25948  - [39m11.03.2026, 09:43:16 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.[39m
+PrismaClientUnknownRequestError: 
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.
+    at $n.handleRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7505)
+    at $n.handleAndLogRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async EpgService.getProgramsAndLogosFromOttCatalog (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:26)
+    at async EpgService.getDayGridForDevice (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:524:26)
+    at async DeviceApiController.day (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\device\device-api.controller.ts:44:19)
+[31m[Nest] 25948  - [39m11.03.2026, 09:43:17 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.[39m
+PrismaClientUnknownRequestError: 
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.
+    at $n.handleRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7505)
+    at $n.handleAndLogRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async EpgService.getProgramsAndLogosFromOttCatalog (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:26)
+    at async EpgService.getNowNextForDevice (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:463:21)
+    at async DeviceApiController.nowNext (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\device\device-api.controller.ts:37:19)
+[31m[Nest] 25948  - [39m11.03.2026, 09:43:41 [31m  ERROR[39m [38;5;3m[ExceptionsHandler] [39m[31m
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.[39m
+PrismaClientUnknownRequestError: 
+Invalid `this.prisma.ottProgram.findMany()` invocation in
+C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:55
+
+  1394   syncCount += 1;
+  1395 }
+  1396 
+→ 1397 const programsRows = await this.prisma.ottProgram.findMany(
+Inconsistent query result: Field channel is required to return data, got `null` instead.
+    at $n.handleRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:7505)
+    at $n.handleAndLogRequestError (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6623)
+    at $n.request (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:121:6307)
+    at async l (C:\Users\nikot\Desktop\playlist-modificat\app\node_modules\.pnpm\@prisma+client@5.22.0_prisma@5.22.0\node_modules\@prisma\client\runtime\library.js:130:9633)
+    at async EpgService.getProgramsAndLogosFromOttCatalog (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:1397:26)
+    at async EpgService.getDayGridForDevice (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\epg\epg.service.ts:524:26)
+    at async DeviceApiController.day (C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend\src\device\device-api.controller.ts:44:19)

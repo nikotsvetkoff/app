@@ -36,6 +36,7 @@ export interface PairedDeviceListItem {
   name: string;
   platform: string;
   macAddress: string | null;
+  fingerprint: string | null;
   ipAddress: string | null;
   pairedAt: string | null;
   lastSeenAt: string | null;
@@ -410,12 +411,14 @@ export class DevicesService {
         ? `${device.client.lastName} ${device.client.firstName}`.trim()
         : null;
       const macAddress = this.extractDisplayMacFromName(device.name);
+      const fingerprint = macAddress ? null : this.extractDisplayFingerprintFromName(device.name);
 
       return {
         id: device.id,
         name: this.stripDeviceIpTag(device.name),
         platform: device.platform,
         macAddress,
+        fingerprint,
         ipAddress: extractDeviceIpTag(device.name),
         pairedAt: device.pairedAt?.toISOString() ?? null,
         lastSeenAt: device.lastSeenAt?.toISOString() ?? null,
@@ -753,7 +756,8 @@ export class DevicesService {
       return undefined;
     }
 
-    const regex = /([0-9A-F]{2}(?::[0-9A-F]{2}){5}|[0-9A-F]{2}(?:-[0-9A-F]{2}){5}|[0-9A-F]{12})/i;
+    const regex =
+      /([0-9A-F]{2}(?::[0-9A-F]{2}){5}|[0-9A-F]{2}(?:-[0-9A-F]{2}){5}|[0-9A-F]{4}(?:\.[0-9A-F]{4}){2}|[0-9A-F]{12})/i;
     const matched = deviceName.match(regex)?.[0];
     const normalized = this.normalizeMacAddress(matched);
     return normalized.length === 12 ? normalized : undefined;
@@ -770,6 +774,16 @@ export class DevicesService {
     }
 
     return normalizedMac.match(/.{1,2}/g)?.join(':') ?? null;
+  }
+
+  private extractDisplayFingerprintFromName(deviceName: string): string | null {
+    const inSquareBrackets = deviceName.match(/\[([^\]]+)\]/)?.[1];
+    if (!inSquareBrackets || /^ip\s*:/i.test(inSquareBrackets.trim())) {
+      return null;
+    }
+
+    const normalized = this.normalizeFingerprint(inSquareBrackets);
+    return normalized || null;
   }
 
   private resolveDeviceIdentity(deviceName?: string): DeviceIdentity {

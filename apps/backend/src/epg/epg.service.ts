@@ -29,6 +29,7 @@ const XMLTV_HEADERS: Record<string, string> = {
   'Accept-Language': 'ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7'
 };
 const MAX_XMLTV_UPLOAD_BYTES = 80_000_000;
+const MAX_XMLTV_SOURCE_URLS = 24;
 const XMLTV_CHANNEL_NAME_LOOKUP_TTL_MS = 30 * 60 * 1000;
 const CHANNEL_NAME_QUALITY_TOKENS = new Set(['hd', 'uhd', 'fhd', 'sd', '4k', 'hevc', 'hdr']);
 const CHANNEL_NAME_REGION_TOKENS = new Set([
@@ -112,6 +113,7 @@ interface NowNextEntry {
 
 interface XmlTvSourceRecord {
   url: string;
+  urls: string[];
   lastIngestedAt: Date | null;
   lastError: string | null;
   updatedAt: Date | null;
@@ -215,6 +217,7 @@ export class EpgService {
   private readonly xmlTvFetchRetries: number;
   private readonly xmlTvAllGuidesConcurrency: number;
   private readonly xmlTvRetryAfterFailureMs: number;
+  private readonly xmlTvExtraSourceUrls: string[];
   private readonly xmlTvRefreshInFlight = new Map<string, Promise<XmlTvNowNextSnapshot | null>>();
   private readonly xmlTvChannelNameLookupCache = new Map<string, XmlTvChannelNameLookupCacheEntry>();
   private readonly ottChannelNameLookupCache = new Map<string, OttChannelNameLookupCacheEntry>();
@@ -258,8 +261,25 @@ export class EpgService {
       .trim()
       .replace(/\s+/g, '');
     const configuredXmlTvUrl = this.normalizeXmlTvSourceUrl(configuredXmlTvUrlRaw);
+    const configuredXmlTvExtraSourceUrls = this.parseXmlTvSourceUrls(
+      String(this.configService.get('EPG_XMLTV_EXTRA_SOURCE_URLS') ?? '')
+    ).filter((url) => url !== configuredXmlTvUrl);
 
     this.xmlTvDefaultSourceUrl = configuredXmlTvUrl || DEFAULT_XMLTV_SOURCE_URL;
+    this.xmlTvExtraSourceUrls = configuredXmlTvExtraSourceUrls.filter((url) => {
+      if (!this.isXmlSnapshotIngestAllowed(url)) {
+        return false;
+      }
+      if (this.isIptvOrgAllSourceUrl(url)) {
+        return true;
+      }
+      try {
+        assertSafeHttpUrl(url);
+        return true;
+      } catch {
+        return false;
+      }
+    });
     this.xmlTvSnapshotTtlMs = Number(this.configService.get('EPG_XMLTV_SNAPSHOT_TTL_SEC') ?? 1800) * 1000;
     this.xmlTvFetchTimeoutMs = Number(this.configService.get('EPG_XMLTV_FETCH_TIMEOUT_MS') ?? 240000);
     this.xmlTvFetchRetries = Number(this.configService.get('EPG_XMLTV_FETCH_RETRIES') ?? 1);
@@ -275,8 +295,24 @@ export class EpgService {
   }
 
   async setEpgUrl(userId: string, rawUrl: string): Promise<{ success: true }> {
-    const normalizedUrl = this.normalizeXmlTvSourceUrl(rawUrl);
-    const safeUrl = assertSafeHttpUrl(normalizedUrl).toString();
+    const sourceUrls = this.parseXmlTvSourceUrls(rawUrl);
+    if (sourceUrls.length === 0) {
+      throw new BadRequestException('Introdu cel putin un URL EPG valid.');
+    }
+    if (sourceUrls.length > MAX_XMLTV_SOURCE_URLS) {
+      throw new BadRequestException(`Prea multe surse EPG. Maxim ${MAX_XMLTV_SOURCE_URLS}.`);
+    }
+
+    const safeUrls = sourceUrls.map((sourceUrl) => {
+      if (!this.isXmlSnapshotIngestAllowed(sourceUrl)) {
+        throw new BadRequestException(`Sursa EPG nu este suportata: ${sourceUrl}`);
+      }
+      if (this.isIptvOrgAllSourceUrl(sourceUrl)) {
+        return sourceUrl;
+      }
+      return assertSafeHttpUrl(sourceUrl).toString();
+    });
+    const serializedSourceUrls = this.serializeXmlTvSourceUrls(safeUrls);
 
     await this.prisma.epgSource.upsert({
       where: {
@@ -284,12 +320,12 @@ export class EpgService {
       },
       create: {
         userId,
-        url: safeUrl,
+        url: serializedSourceUrls,
         lastIngestedAt: null,
         lastError: null
       },
       update: {
-        url: safeUrl,
+        url: serializedSourceUrls,
         lastIngestedAt: null,
         lastError: null
       }
@@ -419,7 +455,7 @@ export class EpgService {
 
     const snapshotParsed = this.parseStoredXmlTvSnapshot(snapshot?.programsJson);
     const snapshotChannels = Object.keys(snapshotParsed?.nowNextByTvgId ?? {}).length;
-    const xmlSnapshotAllowed = this.isXmlSnapshotIngestAllowed(source.url);
+    const xmlSnapshotAllowed = source.urls.some((url) => this.isXmlSnapshotIngestAllowed(url));
 
     return {
       mode: 'auto-ott+xmltv-snapshot',
@@ -776,7 +812,7 @@ export class EpgService {
     });
 
     const cachedSnapshot = this.parseStoredXmlTvSnapshot(snapshotRow?.programsJson);
-    const effectiveSnapshotTtlMs = this.isIptvOrgAllSourceUrl(source.url)
+    const effectiveSnapshotTtlMs = source.urls.some((url) => this.isIptvOrgAllSourceUrl(url))
       ? Math.max(this.xmlTvSnapshotTtlMs, IPTV_ORG_MIN_REFRESH_MS)
       : this.xmlTvSnapshotTtlMs;
     const sourceChangedAfterSnapshot =
@@ -791,7 +827,7 @@ export class EpgService {
       return cachedSnapshot;
     }
 
-    if (!this.isXmlSnapshotIngestAllowed(source.url)) {
+    if (!source.urls.some((url) => this.isXmlSnapshotIngestAllowed(url))) {
       return cachedSnapshot;
     }
 
@@ -802,7 +838,7 @@ export class EpgService {
       return cachedSnapshot;
     }
 
-    const refreshedSnapshot = await this.refreshXmlTvSnapshotLocked(userId, source.url);
+    const refreshedSnapshot = await this.refreshXmlTvSnapshotLocked(userId, source.urls);
     return refreshedSnapshot ?? cachedSnapshot;
   }
 
@@ -897,14 +933,14 @@ export class EpgService {
 
   private async refreshXmlTvSnapshotLocked(
     userId: string,
-    sourceUrl: string
+    sourceUrls: string[]
   ): Promise<XmlTvNowNextSnapshot | null> {
     const inFlight = this.xmlTvRefreshInFlight.get(userId);
     if (inFlight) {
       return inFlight;
     }
 
-    const task = this.refreshXmlTvSnapshot(userId, sourceUrl).finally(() => {
+    const task = this.refreshXmlTvSnapshot(userId, sourceUrls).finally(() => {
       this.xmlTvRefreshInFlight.delete(userId);
     });
 
@@ -914,12 +950,55 @@ export class EpgService {
 
   private async refreshXmlTvSnapshot(
     userId: string,
-    sourceUrl: string
+    sourceUrls: string[]
   ): Promise<XmlTvNowNextSnapshot | null> {
+    const persistedSourceValue = this.serializeXmlTvSourceUrls(sourceUrls);
+
     try {
-      const parsed = this.isIptvOrgAllSourceUrl(sourceUrl)
-        ? await this.refreshIptvOrgAllSnapshot(sourceUrl)
-        : await this.refreshSingleXmlTvSnapshot(sourceUrl);
+      const mergedNowNextByTvgId: Record<string, { now?: EpgProgram; next?: EpgProgram }> = {};
+      const mergedLogosByTvgId: Record<string, string> = {};
+      const mergedChannelNamesByTvgId: Record<string, string[]> = {};
+
+      let successCount = 0;
+      const failedSources: string[] = [];
+
+      for (const sourceUrl of sourceUrls) {
+        if (!this.isXmlSnapshotIngestAllowed(sourceUrl)) {
+          continue;
+        }
+
+        try {
+          const parsed = this.isIptvOrgAllSourceUrl(sourceUrl)
+            ? await this.refreshIptvOrgAllSnapshot(sourceUrl)
+            : await this.refreshSingleXmlTvSnapshot(sourceUrl);
+          this.mergeXmlTvNowNextSnapshot(
+            mergedNowNextByTvgId,
+            mergedLogosByTvgId,
+            mergedChannelNamesByTvgId,
+            parsed
+          );
+          successCount += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'unknown error';
+          failedSources.push(`${sourceUrl}: ${message}`);
+        }
+      }
+
+      if (successCount === 0) {
+        const details = failedSources.join(' | ') || 'No valid XMLTV sources configured.';
+        throw new BadRequestException(`Nu s-a putut incarca niciuna dintre sursele EPG. ${details}`);
+      }
+
+      if (failedSources.length > 0) {
+        this.logger.warn(`XMLTV partial refresh for ${userId}: ${failedSources.join(' | ')}`);
+      }
+
+      const parsed: XmlTvNowNextSnapshot = {
+        generatedAt: new Date().toISOString(),
+        nowNextByTvgId: mergedNowNextByTvgId,
+        logosByTvgId: mergedLogosByTvgId,
+        channelNamesByTvgId: mergedChannelNamesByTvgId
+      };
 
       const now = new Date();
 
@@ -930,12 +1009,12 @@ export class EpgService {
           },
           create: {
             userId,
-            url: sourceUrl,
+            url: persistedSourceValue,
             lastIngestedAt: now,
             lastError: null
           },
           update: {
-            url: sourceUrl,
+            url: persistedSourceValue,
             lastIngestedAt: now,
             lastError: null
           }
@@ -968,11 +1047,11 @@ export class EpgService {
         },
         create: {
           userId,
-          url: sourceUrl,
+          url: persistedSourceValue,
           lastError: errorMessage
         },
         update: {
-          url: sourceUrl,
+          url: persistedSourceValue,
           lastError: errorMessage
         }
       });
@@ -1011,10 +1090,10 @@ export class EpgService {
 
     await Promise.all(
       Array.from({ length: workerCount }, async () => {
-        while (true) {
+        while (queue.length > 0) {
           const guideUrl = queue.shift();
           if (!guideUrl) {
-            return;
+            continue;
           }
 
           try {
@@ -1280,6 +1359,7 @@ export class EpgService {
   }
 
   private async getEffectiveXmlTvSource(userId: string): Promise<XmlTvSourceRecord> {
+    const defaultUrls = this.buildDefaultXmlTvSourceUrls();
     const source = await this.prisma.epgSource.findUnique({
       where: {
         userId
@@ -1293,9 +1373,11 @@ export class EpgService {
     });
 
     if (source?.url) {
-      const normalizedSourceUrl = this.normalizeXmlTvSourceUrl(source.url);
+      const normalizedSourceUrls = this.parseXmlTvSourceUrls(source.url);
+      const effectiveUrls = normalizedSourceUrls.length > 0 ? normalizedSourceUrls : defaultUrls;
       return {
-        url: normalizedSourceUrl || this.xmlTvDefaultSourceUrl,
+        url: this.serializeXmlTvSourceUrls(effectiveUrls),
+        urls: effectiveUrls,
         lastIngestedAt: source.lastIngestedAt,
         lastError: source.lastError,
         updatedAt: source.updatedAt
@@ -1303,11 +1385,65 @@ export class EpgService {
     }
 
     return {
-      url: this.xmlTvDefaultSourceUrl,
+      url: this.serializeXmlTvSourceUrls(defaultUrls),
+      urls: defaultUrls,
       lastIngestedAt: null,
       lastError: null,
       updatedAt: null
     };
+  }
+
+  private buildDefaultXmlTvSourceUrls(): string[] {
+    const merged = [this.xmlTvDefaultSourceUrl, ...this.xmlTvExtraSourceUrls]
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    return [...new Set(merged)].slice(0, MAX_XMLTV_SOURCE_URLS);
+  }
+
+  private serializeXmlTvSourceUrls(urls: string[]): string {
+    const normalized = [...new Set(urls.map((value) => value.trim()).filter(Boolean))].slice(
+      0,
+      MAX_XMLTV_SOURCE_URLS
+    );
+    return normalized.join('\n');
+  }
+
+  private parseXmlTvSourceUrls(rawSourceValue: string): string[] {
+    const rawInput = String(rawSourceValue ?? '').trim();
+    if (!rawInput) {
+      return [];
+    }
+
+    const httpLikeMatches = rawInput.match(/https?:\/\/\S+/gi);
+    const rawCandidates =
+      httpLikeMatches && httpLikeMatches.length > 1
+        ? httpLikeMatches
+        : rawInput
+            .split(/\r?\n/)
+            .map((value) => value.trim())
+            .filter(Boolean);
+
+    const normalized = new Set<string>();
+
+    for (const rawCandidate of rawCandidates) {
+      const trimmed = rawCandidate.trim().replace(/^[,;]+|[,;]+$/g, '');
+      if (!trimmed) {
+        continue;
+      }
+
+      const normalizedUrl = this.normalizeXmlTvSourceUrl(trimmed);
+      if (!normalizedUrl) {
+        continue;
+      }
+
+      normalized.add(normalizedUrl);
+      if (normalized.size >= MAX_XMLTV_SOURCE_URLS) {
+        break;
+      }
+    }
+
+    return [...normalized];
   }
 
   private async getOrCreateDefaultProvider(userId: string) {

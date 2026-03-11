@@ -1,0 +1,9 @@
+index,name,group,tvgId,streamUrl,status,savedPath,sourceUrl,imageFormat,width,height,bytes,candidatesTried,reason
+1,Moldova 1 HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/19451/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0001-moldova-1-hd-md.png,http://iptvx.one/picons/moldova-1.png,png,200,200,9850,2,
+2,Moldova 2 HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/19439/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0002-moldova-2-hd-md.png,http://iptvx.one/picons/moldova-2.png,png,200,200,12051,2,
+3,Jurnal TV HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/19443/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0003-jurnal-tv-hd-md.png,http://epg.one/img/2843.png,png,165,165,8218,1,
+4,TV8 HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/19449/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0004-tv8-hd-md.png,http://iptvx.one/picons/tv8-tr.png,png,200,200,34483,7,
+5,Pro TV Chisinau HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/19452/index.m3u8,missing,,,,,,,0,no_candidate_logo_url
+6,Realitatea Live HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/31894/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0006-realitatea-live-hd-md.png,http://epg.one/img/9783.png,png,165,165,10137,1,
+7,Global 24 HD MD,Moldova,,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/19450/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0007-global-24-hd-md.png,http://epg.one/img/7823.png,png,165,165,10108,1,
+8,N4 MD,Moldova,2789,http://c137c781.rossteleccom.net/iptv/WLSHARFG8FUEKR/2460/index.m3u8,saved,output/channel-logos-smoke-v2/logos/0008-n4-md.png,http://iptvx.one/picons/n4.png,png,200,200,13682,4,

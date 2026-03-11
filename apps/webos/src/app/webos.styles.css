@@ -20,9 +20,9 @@
   --epgx-col-logo: 124px;
   --epgx-col-name: 320px;
   position: absolute;
-  inset: 10px;
+  inset: 0;
   z-index: 3;
-  border-radius: 20px;
+  border-radius: 0;
   border: 1px solid rgba(122, 159, 196, 0.52);
   background:
     radial-gradient(120% 120% at 0% 0%, rgba(60, 101, 150, 0.24), transparent 46%),
@@ -35,6 +35,27 @@
   overflow: hidden;
   display: grid;
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.player--no-backdrop .epgx-guide {
+  backdrop-filter: none;
+}
+
+.player--runtime-legacy .epgx-guide {
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.46);
+}
+
+.player--runtime-legacy .epgx-guide__focus-chip,
+.player--runtime-legacy .epgx-guide__row-focus-line {
+  box-shadow: none;
+}
+
+.epgx-guide--simplified .epgx-guide__program {
+  padding: 6px 8px;
+}
+
+.epgx-guide--simplified .epgx-guide__program-title {
+  font-size: 14px;
 }
 
 .epgx-guide__header {

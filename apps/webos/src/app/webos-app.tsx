@@ -63,15 +63,10 @@ interface EpgDayResponse {
   items: EpgDayItem[];
 }
 
-interface PlaybackOverride {
-  channelId: string;
-  url: string;
-  label: string;
-}
-
 type ScreenView = 'pairing' | 'player';
 type MenuFocusZone = 'categories' | 'channels';
 type MenuView = 'channels' | 'epg';
+type WebOsRuntimeMode = 'legacy' | 'balanced' | 'modern';
 type RemoteAction =
   | 'UP'
   | 'DOWN'
@@ -81,9 +76,6 @@ type RemoteAction =
   | 'BACK'
   | 'EXIT'
   | 'MENU'
-  | 'LIST'
-  | 'GUIDE'
-  | 'INFO'
   | 'PLAY'
   | 'PAUSE'
   | 'PLAY_PAUSE'
@@ -105,6 +97,20 @@ interface RemoteInput {
   digit?: number;
 }
 
+interface WebOsRuntimeProfile {
+  mode: WebOsRuntimeMode;
+  webOsVersion?: number;
+  cpuCores?: number;
+  guideVisibleRows: number;
+  epgPollIntervalMs: number;
+  epgDayRefreshIntervalMs: number;
+  uiAutoHideTimeoutMs: number;
+  maxTimelineBlocksPerRow: number;
+  simplifyGuideRows: boolean;
+  skipDayGrid: boolean;
+  disableBackdropFilter: boolean;
+}
+
 const DEVICE_TOKEN_KEY = 'iptv:webos:deviceToken';
 const API_BASE_KEY = 'iptv:webos:apiBase';
 const LAST_PLAYING_CHANNEL_ID_KEY = 'iptv:webos:lastPlayingChannelId';
@@ -115,6 +121,7 @@ const REQUEST_TIMEOUT_MS = 9000;
 const FETCH_ERROR_MESSAGE = 'failed to fetch';
 const LOOPBACK_HOSTS = new Set(['localhost', '127.0.0.1', '::1']);
 const API_BASE_HINTS = [
+  'http://10.0.0.245:3000',
   'http://10.0.0.247:3000',
   'http://10.0.0.246:3000',
   'http://192.168.100.4:3000',
@@ -124,13 +131,159 @@ const API_BASE_HINTS = [
 
 const AUDIO_ONLY_DETECT_MS = 2500;
 const CHANNEL_NUMBER_INPUT_TIMEOUT_MS = 1200;
-const EPG_POLL_INTERVAL_MS = 60000;
-const UI_AUTO_HIDE_TIMEOUT_MS = 10000;
+const BASE_EPG_POLL_INTERVAL_MS = 60000;
+const BASE_EPG_DAY_REFRESH_INTERVAL_MS = 120_000;
+const BASE_UI_AUTO_HIDE_TIMEOUT_MS = 10000;
 const PLAYER_INPUT_GUARD_MS = 900;
+const NAVIGATION_REPEAT_THROTTLE_MS = 90;
 const MENU_CHANNEL_ITEM_HEIGHT_PX = 62;
-const GUIDE_VISIBLE_ROWS = 10;
+const BASE_GUIDE_VISIBLE_ROWS = 10;
 const GUIDE_TIMELINE_STEP_MS = 30 * 60 * 1000;
 const GUIDE_TIMELINE_WINDOW_MS = 2 * 60 * 60 * 1000;
+const GUIDE_NOW_SYNC_INTERVAL_MS = 30_000;
+const MAX_DAY_PROGRAMS_PER_CHANNEL = 96;
+const MAX_TIMELINE_BLOCKS_PER_ROW_HARD_LIMIT = 16;
+const EPG_DAY_CHUNK_SIZE_LEGACY = 16;
+const EPG_DAY_CHUNK_SIZE_BALANCED = 28;
+const EPG_DAY_CHUNK_SIZE_MODERN = 40;
+const WEBOS_VERSION_REGEX = /(?:web0s|webos)[^\d]{0,8}(\d+(?:\.\d+)?)/i;
+const WEBOS_TV_YEAR_REGEX = /web0s\.tv[-/](\d{4})/i;
+
+const parseRuntimeVersion = (rawValue: unknown): number | undefined => {
+  if (typeof rawValue === 'number' && Number.isFinite(rawValue) && rawValue > 0) {
+    return rawValue;
+  }
+  if (typeof rawValue !== 'string') {
+    return undefined;
+  }
+  const normalized = rawValue.trim().replace(/_/g, '.');
+  const match = normalized.match(/(\d+(?:\.\d+)?)/);
+  if (!match) {
+    return undefined;
+  }
+  const parsed = Number.parseFloat(match[1]);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined;
+  }
+  return parsed;
+};
+
+const requestWebOsRuntimeVersion = (): number | undefined => {
+  if (typeof navigator === 'undefined') {
+    return undefined;
+  }
+
+  const userAgent = navigator.userAgent || '';
+  const direct = parseRuntimeVersion(userAgent.match(WEBOS_VERSION_REGEX)?.[1]);
+  if (typeof direct === 'number') {
+    return direct;
+  }
+
+  const yearMatch = userAgent.match(WEBOS_TV_YEAR_REGEX);
+  const modelYear = yearMatch ? Number.parseInt(yearMatch[1], 10) : Number.NaN;
+  if (!Number.isFinite(modelYear)) {
+    return undefined;
+  }
+
+  // Approximate major runtime bucket from marketing year when explicit runtime version is absent.
+  if (modelYear <= 2018) {
+    return 4;
+  }
+  if (modelYear <= 2021) {
+    return 6;
+  }
+  return 22;
+};
+
+const requestHardwareConcurrency = (): number | undefined => {
+  if (typeof navigator === 'undefined') {
+    return undefined;
+  }
+  const cores = Number((navigator as Navigator & { hardwareConcurrency?: unknown }).hardwareConcurrency);
+  if (!Number.isFinite(cores) || cores <= 0) {
+    return undefined;
+  }
+  return Math.floor(cores);
+};
+
+const resolveWebOsRuntimeProfile = (): WebOsRuntimeProfile => {
+  const forcedModeRaw = String(import.meta.env.VITE_WEBOS_RUNTIME_MODE ?? '').trim().toLowerCase();
+  const forcedMode: WebOsRuntimeMode | undefined =
+    forcedModeRaw === 'legacy' || forcedModeRaw === 'balanced' || forcedModeRaw === 'modern'
+      ? forcedModeRaw
+      : undefined;
+  const webOsVersion = requestWebOsRuntimeVersion();
+  const cpuCores = requestHardwareConcurrency();
+
+  let mode: WebOsRuntimeMode = 'balanced';
+  if (typeof webOsVersion === 'number') {
+    if (webOsVersion < 4) {
+      mode = 'legacy';
+    } else if (webOsVersion < 6) {
+      mode = 'balanced';
+    } else {
+      mode = 'modern';
+    }
+  }
+
+  if (typeof cpuCores === 'number') {
+    if (cpuCores <= 2) {
+      mode = 'legacy';
+    } else if (cpuCores <= 4 && mode === 'modern') {
+      mode = 'balanced';
+    }
+  }
+
+  if (forcedMode) {
+    mode = forcedMode;
+  }
+
+  if (mode === 'legacy') {
+    return {
+      mode,
+      webOsVersion,
+      cpuCores,
+      guideVisibleRows: 6,
+      epgPollIntervalMs: 90_000,
+      epgDayRefreshIntervalMs: 240_000,
+      uiAutoHideTimeoutMs: 16_000,
+      maxTimelineBlocksPerRow: 4,
+      simplifyGuideRows: true,
+      skipDayGrid: true,
+      disableBackdropFilter: true
+    };
+  }
+
+  if (mode === 'modern') {
+    return {
+      mode,
+      webOsVersion,
+      cpuCores,
+      guideVisibleRows: BASE_GUIDE_VISIBLE_ROWS,
+      epgPollIntervalMs: BASE_EPG_POLL_INTERVAL_MS,
+      epgDayRefreshIntervalMs: BASE_EPG_DAY_REFRESH_INTERVAL_MS,
+      uiAutoHideTimeoutMs: BASE_UI_AUTO_HIDE_TIMEOUT_MS,
+      maxTimelineBlocksPerRow: 12,
+      simplifyGuideRows: false,
+      skipDayGrid: false,
+      disableBackdropFilter: false
+    };
+  }
+
+  return {
+    mode,
+    webOsVersion,
+    cpuCores,
+    guideVisibleRows: 8,
+    epgPollIntervalMs: 75_000,
+    epgDayRefreshIntervalMs: 180_000,
+    uiAutoHideTimeoutMs: 13_000,
+    maxTimelineBlocksPerRow: 7,
+    simplifyGuideRows: true,
+    skipDayGrid: false,
+    disableBackdropFilter: true
+  };
+};
 
 const normalizeBaseUrl = (value: string): string => value.trim().replace(/\/+$/, '');
 const getChannelGroupName = (channel: Channel): string => normalizeGroupName(channel.groupName ?? channel.group);
@@ -155,63 +308,6 @@ const parseProgramTimestamp = (value?: string): number | undefined => {
     return undefined;
   }
   return parsed;
-};
-
-const findProgramAtTime = (programs: EpgProgramItem[], timestamp: number): EpgProgramItem | undefined => {
-  for (const program of programs) {
-    const start = parseProgramTimestamp(program.start);
-    const end = parseProgramTimestamp(program.end);
-    if (typeof start !== 'number' || typeof end !== 'number') {
-      continue;
-    }
-    if (timestamp >= start && timestamp < end) {
-      return program;
-    }
-  }
-  return undefined;
-};
-
-const findNextProgramAtTime = (programs: EpgProgramItem[], timestamp: number): EpgProgramItem | undefined => {
-  for (const program of programs) {
-    const start = parseProgramTimestamp(program.start);
-    if (typeof start !== 'number') {
-      continue;
-    }
-    if (start >= timestamp) {
-      return program;
-    }
-  }
-  return undefined;
-};
-
-const findEveningProgramAtTime = (programs: EpgProgramItem[], timestamp: number): EpgProgramItem | undefined => {
-  const baseDate = new Date(timestamp);
-  const eveningStart = new Date(baseDate);
-  eveningStart.setHours(20, 0, 0, 0);
-  const eveningEnd = new Date(baseDate);
-  eveningEnd.setHours(23, 59, 59, 999);
-  const eveningStartMs = eveningStart.getTime();
-  const eveningEndMs = eveningEnd.getTime();
-
-  for (const program of programs) {
-    const start = parseProgramTimestamp(program.start);
-    if (typeof start !== 'number') {
-      continue;
-    }
-    if (start >= eveningStartMs && start <= eveningEndMs) {
-      return program;
-    }
-  }
-
-  return findNextProgramAtTime(programs, timestamp) ?? programs[programs.length - 1];
-};
-
-const findGuideProgramAtTime = (programs: EpgProgramItem[], timestamp: number): EpgProgramItem | undefined => {
-  return (
-    findProgramAtTime(programs, timestamp) ??
-    findNextProgramAtTime(programs, timestamp) ??
-    programs[programs.length - 1]
-  );
 };
 
 const resolveDisplayNowNext = (
@@ -255,82 +351,9 @@ const resolveDisplayNowNext = (
 };
 
 const getGuideWindowStart = (timestampMs: number): number => {
-  return Math.floor(timestampMs / GUIDE_TIMELINE_STEP_MS) * GUIDE_TIMELINE_STEP_MS;
+  return Math.max(timestampMs, Date.now());
 };
 
-const toEpochSeconds = (timestampMs: number): string => String(Math.floor(timestampMs / 1000));
-const resolveArchiveDays = (channel?: Channel): number => {
-  if (!channel) {
-    return 0;
-  }
-  if (typeof channel.catchupDays === 'number' && Number.isFinite(channel.catchupDays) && channel.catchupDays > 0) {
-    return Math.floor(channel.catchupDays);
-  }
-  if ((channel.catchupSource ?? '').trim() || (channel.catchup ?? '').trim()) {
-    return 14;
-  }
-  return 0;
-};
-
-const buildArchiveUrl = (channel: Channel, program: EpgProgramItem): string | undefined => {
-  const rawStartMs = parseProgramTimestamp(program.start);
-  const rawEndMs = parseProgramTimestamp(program.end);
-  if (typeof rawStartMs !== 'number' || typeof rawEndMs !== 'number' || rawEndMs <= rawStartMs) {
-    return undefined;
-  }
-
-  const correctionHours =
-    typeof channel.catchupCorrection === 'number' && Number.isFinite(channel.catchupCorrection)
-      ? channel.catchupCorrection
-      : 0;
-  const correctionMs = Math.round(correctionHours * 60 * 60 * 1000);
-  const startMs = rawStartMs + correctionMs;
-  const endMs = rawEndMs + correctionMs;
-  const durationSeconds = Math.max(60, Math.floor((rawEndMs - rawStartMs) / 1000));
-  const startEpoch = toEpochSeconds(startMs);
-  const endEpoch = toEpochSeconds(endMs);
-  const startIso = new Date(startMs).toISOString();
-  const endIso = new Date(endMs).toISOString();
-  const replacements: Array<[string, string]> = [
-    ['{start}', startEpoch],
-    ['${start}', startEpoch],
-    ['{end}', endEpoch],
-    ['${end}', endEpoch],
-    ['{duration}', String(durationSeconds)],
-    ['${duration}', String(durationSeconds)],
-    ['{utc}', startEpoch],
-    ['${utc}', startEpoch],
-    ['{lutc}', startEpoch],
-    ['${lutc}', startEpoch],
-    ['{start_iso}', startIso],
-    ['${start_iso}', startIso],
-    ['{end_iso}', endIso],
-    ['${end_iso}', endIso]
-  ];
-
-  const template = (channel.catchupSource ?? '').trim();
-  if (template) {
-    let resolvedTemplate = template;
-    for (const [token, value] of replacements) {
-      resolvedTemplate = resolvedTemplate.split(token).join(value);
-    }
-    try {
-      return new URL(resolvedTemplate, channel.url).toString();
-    } catch {
-      return resolvedTemplate;
-    }
-  }
-
-  try {
-    const parsed = new URL(channel.url);
-    parsed.searchParams.set('utc', startEpoch);
-    parsed.searchParams.set('lutc', startEpoch);
-    parsed.searchParams.set('duration', String(durationSeconds));
-    return parsed.toString();
-  } catch {
-    return undefined;
-  }
-};
 const formatProgramTime = (value?: string): string => {
   if (!value) {
     return '--:--';
@@ -355,27 +378,6 @@ const formatTimeFromTimestamp = (timestampMs: number): string =>
     hour12: false
   });
 
-const inferProgramGenre = (program?: EpgProgramItem): { label: string; icon: string } => {
-  const title = (program?.title ?? '').toLowerCase();
-  const description = (program?.description ?? '').toLowerCase();
-  const haystack = `${title} ${description}`;
-
-  if (/(sport|fotbal|football|tenis|tennis|hochei|hockey|nba|nfl|liga)/.test(haystack)) {
-    return { label: 'Sport', icon: 'SP' };
-  }
-  if (/(news|stiri|jurnal|breaking|reportaj|actualitati)/.test(haystack)) {
-    return { label: 'Stiri', icon: 'ST' };
-  }
-  if (/(film|movie|cinema|thriller|drama|comedy|comedie|documentar)/.test(haystack)) {
-    return { label: 'Film', icon: 'FL' };
-  }
-  if (/(serial|series|episode|episod|show)/.test(haystack)) {
-    return { label: 'Serial', icon: 'SR' };
-  }
-
-  return { label: 'General', icon: 'GN' };
-};
-
 const formatProgramRange = (program?: EpgProgramItem): string => {
   if (!program) {
     return '--:-- - --:--';
@@ -389,6 +391,30 @@ const wrapIndex = (next: number, length: number): number => {
   }
 
   return (next % length + length) % length;
+};
+
+const trimTimelineBlocksAroundFocus = <T extends { startMs: number; endMs: number }>(
+  blocks: T[],
+  focusTimeMs: number,
+  limit: number
+): T[] => {
+  if (blocks.length <= limit) {
+    return blocks;
+  }
+
+  const focusIndex = blocks.findIndex((block) => focusTimeMs >= block.startMs && focusTimeMs < block.endMs);
+  const anchorIndex =
+    focusIndex >= 0 ? focusIndex : Math.max(blocks.findIndex((block) => block.startMs >= focusTimeMs), 0);
+  const half = Math.floor(limit / 2);
+  const maxStart = Math.max(blocks.length - limit, 0);
+  const start = Math.min(Math.max(anchorIndex - half, 0), maxStart);
+  return blocks.slice(start, start + limit);
+};
+
+const waitForUiYield = (): Promise<void> => {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
 };
 
 const getRemoteInput = (event: KeyboardEvent): RemoteInput => {
@@ -430,24 +456,6 @@ const getRemoteInput = (event: KeyboardEvent): RemoteInput => {
     return { action: 'ENTER' };
   }
 
-  if (
-    key === 'list' ||
-    key === 'channellist' ||
-    key === 'livetv' ||
-    key === 'tvlist' ||
-    key === 'channels'
-  ) {
-    return { action: 'LIST' };
-  }
-  if (code === 10073 || code === 170) {
-    return { action: 'LIST' };
-  }
-  if (key === 'guide' || key === 'tvguide' || key === 'mediaguide' || key === 'epg' || code === 458 || code === 10131) {
-    return { action: 'GUIDE' };
-  }
-  if (key === 'info' || code === 457) {
-    return { action: 'INFO' };
-  }
   if (key === 'contextmenu' || key === 'menu' || code === 18) {
     return { action: 'MENU' };
   }
@@ -620,6 +628,13 @@ interface WebOsServiceRequestOptions {
 type WebOsServiceRequestFn = (uri: string, options: WebOsServiceRequestOptions) => void;
 
 const normalizeMacAddress = (raw: string): string => raw.trim().replace(/-/g, ':').toUpperCase();
+const normalizeDeviceFingerprint = (raw?: string): string | undefined => {
+  const normalized = (raw ?? '')
+    .trim()
+    .toUpperCase()
+    .replace(/[^0-9A-Z]/g, '');
+  return normalized.length >= 6 ? normalized : undefined;
+};
 
 const findMacAddressInObject = (root: unknown): string | undefined => {
   const queue: unknown[] = [root];
@@ -715,6 +730,146 @@ const requestWebOsMacAddress = async (): Promise<string | undefined> => {
   return call('luna://com.webos.service.connectionmanager', 'getinfo');
 };
 
+interface WebOsDevApi {
+  LGUDID?: (params: {
+    onSuccess?: (payload?: unknown) => void;
+    onFailure?: (error?: unknown) => void;
+  }) => void;
+}
+
+const extractFingerprintFromObject = (root: unknown): string | undefined => {
+  const queue: unknown[] = [root];
+  const visited = new Set<unknown>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (!current) {
+      continue;
+    }
+
+    if (typeof current === 'string') {
+      const normalized = normalizeDeviceFingerprint(current);
+      if (normalized) {
+        return normalized;
+      }
+      continue;
+    }
+
+    if (typeof current !== 'object' || visited.has(current)) {
+      continue;
+    }
+    visited.add(current);
+
+    if (Array.isArray(current)) {
+      queue.push(...current);
+      continue;
+    }
+
+    const record = current as Record<string, unknown>;
+    const keys = ['id', 'idValue', 'value', 'LGUDID', 'lgudid', 'deviceId'];
+    for (const key of keys) {
+      const value = record[key];
+      if (typeof value === 'string') {
+        const normalized = normalizeDeviceFingerprint(value);
+        if (normalized) {
+          return normalized;
+        }
+      }
+    }
+
+    queue.push(...Object.values(record));
+  }
+
+  return undefined;
+};
+
+const requestWebOsLgUdidViaLuna = async (): Promise<string | undefined> => {
+  const request = getWebOsRequestFunction();
+  if (!request) {
+    return undefined;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value?: string): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(value);
+    };
+
+    const timeout = window.setTimeout(() => finish(undefined), 3000);
+
+    try {
+      request('luna://com.webos.service.sm', {
+        method: 'deviceid/getIDs',
+        parameters: {
+          idType: ['LGUDID']
+        },
+        onSuccess: (response) => {
+          window.clearTimeout(timeout);
+          finish(extractFingerprintFromObject(response));
+        },
+        onFailure: () => {
+          window.clearTimeout(timeout);
+          finish(undefined);
+        }
+      });
+    } catch {
+      window.clearTimeout(timeout);
+      finish(undefined);
+    }
+  });
+};
+
+const requestWebOsLgUdidViaWebOsDev = async (): Promise<string | undefined> => {
+  const root = window as unknown as {
+    webOSDev?: WebOsDevApi;
+  };
+  const request = root.webOSDev?.LGUDID;
+  if (typeof request !== 'function') {
+    return undefined;
+  }
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value?: string): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      resolve(value);
+    };
+    const timeout = window.setTimeout(() => finish(undefined), 3000);
+
+    try {
+      request({
+        onSuccess: (payload) => {
+          window.clearTimeout(timeout);
+          finish(extractFingerprintFromObject(payload));
+        },
+        onFailure: () => {
+          window.clearTimeout(timeout);
+          finish(undefined);
+        }
+      });
+    } catch {
+      window.clearTimeout(timeout);
+      finish(undefined);
+    }
+  });
+};
+
+const requestWebOsDeviceFingerprint = async (): Promise<string | undefined> => {
+  const fromWebOsDev = await requestWebOsLgUdidViaWebOsDev();
+  if (fromWebOsDev) {
+    return fromWebOsDev;
+  }
+
+  return requestWebOsLgUdidViaLuna();
+};
+
 const fetchJson = async <T,>(url: string, init?: RequestInit): Promise<T> => {
   let timeoutId: number | undefined;
 
@@ -752,18 +907,28 @@ const fetchJson = async <T,>(url: string, init?: RequestInit): Promise<T> => {
 };
 
 export const WebOsApp: React.FC = () => {
+  const runtimeProfile = useMemo(() => resolveWebOsRuntimeProfile(), []);
+  const guideVisibleRows = runtimeProfile.guideVisibleRows;
+  const shouldLoadDayGrid = !runtimeProfile.skipDayGrid;
+  const timelineBlockLimit = Math.min(
+    Math.max(runtimeProfile.maxTimelineBlocksPerRow, 1),
+    MAX_TIMELINE_BLOCKS_PER_ROW_HARD_LIMIT
+  );
+  const navigationRepeatThrottleMs = runtimeProfile.mode === 'legacy' ? 140 : NAVIGATION_REPEAT_THROTTLE_MS;
   const [apiBase, setApiBase] = useState<string>(() => getInitialApiBase());
   const [view, setView] = useState<ScreenView>(() => (getStorageValue(DEVICE_TOKEN_KEY)?.trim() ? 'player' : 'pairing'));
   const [statusMessage, setStatusMessage] = useState<string>();
   const [errorMessage, setErrorMessage] = useState<string>();
 
-  const [pairingCode, setPairingCode] = useState<string>();
+  const [, setPairingCode] = useState<string>();
   const [pairingUrl, setPairingUrl] = useState<string>();
-  const [deviceMacAddress, setDeviceMacAddress] = useState<string>();
+  const [, setDeviceMacAddress] = useState<string>();
+  const [, setDeviceFingerprint] = useState<string>();
   const [deviceToken, setDeviceToken] = useState<string>();
   const pairPollingRef = useRef<number>();
   const epgPollingRef = useRef<number>();
   const epgDayRefreshRef = useRef(0);
+  const epgDayLoadRequestRef = useRef(0);
   const pairPollFailureCountRef = useRef(0);
   const startPairingRequestRef = useRef(0);
   const bootstrappedRef = useRef(false);
@@ -779,20 +944,19 @@ export const WebOsApp: React.FC = () => {
   const [guideFocusTimeMs, setGuideFocusTimeMs] = useState(() => Date.now());
   const [guideWindowStartMs, setGuideWindowStartMs] = useState(() => getGuideWindowStart(Date.now()));
   const [playingChannelId, setPlayingChannelId] = useState<string>();
-  const [playbackOverride, setPlaybackOverride] = useState<PlaybackOverride>();
   const [showChannelList, setShowChannelList] = useState(false);
   const [isUiVisible, setIsUiVisible] = useState(true);
   const [menuView, setMenuView] = useState<MenuView>('epg');
-  const [menuFocusZone, setMenuFocusZone] = useState<MenuFocusZone>('channels');
+  const [, setMenuFocusZone] = useState<MenuFocusZone>('channels');
   const [channelNumberInput, setChannelNumberInput] = useState('');
   const [isMuted, setIsMuted] = useState(false);
   const [audioOnlyWarning, setAudioOnlyWarning] = useState<string>();
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const guidePreviewVideoRef = useRef<HTMLVideoElement>(null);
   const channelNumberTimerRef = useRef<number>();
   const uiAutoHideTimerRef = useRef<number>();
   const playerInputGuardUntilRef = useRef(0);
+  const lastNavigationEventAtRef = useRef(0);
   const backGuardPrimedRef = useRef(false);
   const channelNumberInputRef = useRef('');
   const channelButtonRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -818,16 +982,6 @@ export const WebOsApp: React.FC = () => {
 
   const selectedCategory = categories[selectedCategoryIndex] ?? categories[0];
   const categoryChannels = selectedCategory?.channels ?? [];
-
-  const selectedChannel = useMemo(() => {
-    if (!categoryChannels.length) {
-      return undefined;
-    }
-    if (selectedIndex < 0 || selectedIndex >= categoryChannels.length) {
-      return categoryChannels[0];
-    }
-    return categoryChannels[selectedIndex];
-  }, [categoryChannels, selectedIndex]);
 
   const playingChannel = useMemo(
     () => channels.find((channel) => channel.id === playingChannelId),
@@ -875,7 +1029,7 @@ export const WebOsApp: React.FC = () => {
       const nowNext = getNowNextForChannel(channel);
       const directTvgId = normalizeTvgId(channel.tvgId);
       const resolvedTvgId = directTvgId || normalizeTvgId(nowNext?.channelTvgId);
-      const fromDayGrid = resolvedTvgId ? epgDayByTvgId[resolvedTvgId] : undefined;
+      const fromDayGrid = shouldLoadDayGrid && resolvedTvgId ? epgDayByTvgId[resolvedTvgId] : undefined;
       if (Array.isArray(fromDayGrid) && fromDayGrid.length > 0) {
         return fromDayGrid;
       }
@@ -898,17 +1052,7 @@ export const WebOsApp: React.FC = () => {
           return leftStart - rightStart;
         });
     },
-    [epgDayByTvgId, getNowNextForChannel]
-  );
-  const getGuideProgramForChannelAtFocus = useCallback(
-    (channel?: Channel): EpgProgramItem | undefined => {
-      if (!channel) {
-        return undefined;
-      }
-      const programs = getProgramsForChannel(channel);
-      return findGuideProgramAtTime(programs, guideFocusTimeMs);
-    },
-    [getProgramsForChannel, guideFocusTimeMs]
+    [epgDayByTvgId, getNowNextForChannel, shouldLoadDayGrid]
   );
   const nowMs = Date.now();
   const playingChannelPrograms = useMemo(
@@ -938,24 +1082,20 @@ export const WebOsApp: React.FC = () => {
   const showNowLine = nowLinePct >= 0 && nowLinePct <= 100;
   const focusLinePct = Math.min(Math.max(((guideFocusTimeMs - guideWindowStartMs) / GUIDE_TIMELINE_WINDOW_MS) * 100, 0), 100);
   const selectedGuideChannel = channels[guideSelectedIndex];
-  const focusedGuideProgram = useMemo(
-    () => getGuideProgramForChannelAtFocus(selectedGuideChannel),
-    [getGuideProgramForChannelAtFocus, selectedGuideChannel]
-  );
   const guideWindowRange = useMemo(
     () => {
       const total = channels.length;
       if (total <= 0) {
         return { start: 0, end: 0 };
       }
-      const maxStartIndex = Math.max(total - GUIDE_VISIBLE_ROWS, 0);
+      const maxStartIndex = Math.max(total - guideVisibleRows, 0);
       const safeStart = Math.min(Math.max(guideListStartIndex, 0), maxStartIndex);
       return {
         start: safeStart,
-        end: Math.min(safeStart + GUIDE_VISIBLE_ROWS, total)
+        end: Math.min(safeStart + guideVisibleRows, total)
       };
     },
-    [channels.length, guideListStartIndex]
+    [channels.length, guideListStartIndex, guideVisibleRows]
   );
   const visibleGuideChannels = useMemo(
     () => channels.slice(guideWindowRange.start, guideWindowRange.end),
@@ -964,15 +1104,6 @@ export const WebOsApp: React.FC = () => {
   const playingChannelLogo = playingChannelNowNext?.channelLogo ?? playingChannel?.logo;
   const normalizedPlayingChannelLogo = typeof playingChannelLogo === 'string' ? playingChannelLogo.trim() : '';
   const shouldShowPlayingChannelLogo = normalizedPlayingChannelLogo.length > 0 && !logoLoadFailed;
-  const currentPlaybackUrl = useMemo(() => {
-    if (!playingChannel) {
-      return '';
-    }
-    if (playbackOverride && playbackOverride.channelId === playingChannel.id) {
-      return playbackOverride.url;
-    }
-    return playingChannel.url;
-  }, [playbackOverride, playingChannel]);
 
   useEffect(() => {
     setLogoLoadFailed(false);
@@ -1024,8 +1155,8 @@ export const WebOsApp: React.FC = () => {
       clearChannelNumberTimer();
       channelNumberInputRef.current = '';
       setChannelNumberInput('');
-    }, UI_AUTO_HIDE_TIMEOUT_MS);
-  }, [clearChannelNumberTimer, clearUiAutoHideTimer]);
+    }, runtimeProfile.uiAutoHideTimeoutMs);
+  }, [clearChannelNumberTimer, clearUiAutoHideTimer, runtimeProfile.uiAutoHideTimeoutMs]);
 
   const registerPlayerActivity = useCallback(() => {
     setIsUiVisible(true);
@@ -1044,30 +1175,31 @@ export const WebOsApp: React.FC = () => {
 
   const playLiveChannelById = useCallback((channelId: string): void => {
     setAudioOnlyWarning(undefined);
-    setPlaybackOverride(undefined);
-    setPlayingChannelId(channelId);
-  }, []);
-
-  const playArchiveChannelById = useCallback((channelId: string, archiveUrl: string, label: string): void => {
-    setAudioOnlyWarning(undefined);
-    setPlaybackOverride({
-      channelId,
-      url: archiveUrl,
-      label
-    });
     setPlayingChannelId(channelId);
   }, []);
 
   const openChannelList = useCallback(
-    (_focusZone: MenuFocusZone = 'channels', nextMenuView: MenuView = 'epg') => {
+    () => {
       registerPlayerActivity();
-      setMenuView(nextMenuView === 'epg' ? 'epg' : 'epg');
+      setMenuView('epg');
       setMenuFocusZone('channels');
       setShowChannelList(true);
       const currentPlayingId = playingChannelId ?? channels[0]?.id;
       const guideIndex = currentPlayingId ? channels.findIndex((channel) => channel.id === currentPlayingId) : -1;
       const nextGuideIndex = guideIndex >= 0 ? guideIndex : 0;
-      const maxStartIndex = Math.max(channels.length - GUIDE_VISIBLE_ROWS, 0);
+      const nextGuideChannelId = channels[nextGuideIndex]?.id;
+      if (nextGuideChannelId && categories.length > 0) {
+        const matchedCategoryIndex = categories.findIndex((category) =>
+          category.channels.some((channel) => channel.id === nextGuideChannelId)
+        );
+        if (matchedCategoryIndex >= 0) {
+          setSelectedCategoryIndex(matchedCategoryIndex);
+          const nextCategoryChannels = categories[matchedCategoryIndex]?.channels ?? [];
+          const matchedChannelIndex = nextCategoryChannels.findIndex((channel) => channel.id === nextGuideChannelId);
+          setSelectedIndex(matchedChannelIndex >= 0 ? matchedChannelIndex : 0);
+        }
+      }
+      const maxStartIndex = Math.max(channels.length - guideVisibleRows, 0);
       const nextStartIndex = Math.min(Math.max(nextGuideIndex - 1, 0), maxStartIndex);
       const nowTime = Date.now();
       setGuideSelectedIndex(nextGuideIndex);
@@ -1082,7 +1214,7 @@ export const WebOsApp: React.FC = () => {
       });
       clearChannelNumberInput();
     },
-    [channels, clearChannelNumberInput, playingChannelId, registerPlayerActivity]
+    [categories, channels, clearChannelNumberInput, guideVisibleRows, playingChannelId, registerPlayerActivity]
   );
 
   const closeChannelList = useCallback(() => {
@@ -1093,30 +1225,36 @@ export const WebOsApp: React.FC = () => {
     clearChannelNumberInput();
   }, [clearChannelNumberInput, registerPlayerActivity]);
 
-  const stepCategory = useCallback(
+  const stepGuideCategory = useCallback(
     (delta: number) => {
-      if (!categories.length) {
+      if (!categories.length || !channels.length) {
         return;
       }
-      setSelectedCategoryIndex((prev) => wrapIndex(prev + delta, categories.length));
+
+      const focusedChannelId = channels[guideSelectedIndex]?.id;
+      const focusedCategoryIndex =
+        focusedChannelId
+          ? categories.findIndex((category) => category.channels.some((channel) => channel.id === focusedChannelId))
+          : -1;
+      const safeCategoryIndex = focusedCategoryIndex >= 0 ? focusedCategoryIndex : selectedCategoryIndex;
+      const nextCategoryIndex = wrapIndex(safeCategoryIndex + delta, categories.length);
+      const nextCategoryChannels = categories[nextCategoryIndex]?.channels ?? [];
+      const nextChannel = nextCategoryChannels[0];
+      if (!nextChannel) {
+        return;
+      }
+
+      const nextGuideIndex = channels.findIndex((channel) => channel.id === nextChannel.id);
+      if (nextGuideIndex < 0) {
+        return;
+      }
+
+      setSelectedCategoryIndex(nextCategoryIndex);
       setSelectedIndex(0);
+      setGuideSelectedIndex(nextGuideIndex);
       clearChannelNumberInput();
     },
-    [categories.length, clearChannelNumberInput]
-  );
-
-  const selectChannelAtIndex = useCallback(
-    (nextIndex: number, playNow: boolean) => {
-      const channel = categoryChannels[nextIndex];
-      if (!channel) {
-        return;
-      }
-      setSelectedIndex(nextIndex);
-      if (playNow) {
-        playLiveChannelById(channel.id);
-      }
-    },
-    [categoryChannels, playLiveChannelById]
+    [categories, channels, clearChannelNumberInput, guideSelectedIndex, selectedCategoryIndex]
   );
 
   const stepChannelAndPlay = useCallback(
@@ -1138,25 +1276,6 @@ export const WebOsApp: React.FC = () => {
       setGuideSelectedIndex(nextIndex);
     },
     [channels, playLiveChannelById, playingChannelId]
-  );
-
-  const stepGuideTimeline = useCallback(
-    (delta: number) => {
-      const deltaMs = delta * GUIDE_TIMELINE_STEP_MS;
-      setGuideFocusTimeMs((current) => {
-        const next = current + deltaMs;
-        setGuideWindowStartMs((currentStart) => {
-          const currentEnd = currentStart + GUIDE_TIMELINE_WINDOW_MS;
-          if (next >= currentStart && next <= currentEnd) {
-            return currentStart;
-          }
-          return getGuideWindowStart(next);
-        });
-        return next;
-      });
-      clearChannelNumberInput();
-    },
-    [clearChannelNumberInput]
   );
 
   const commitChannelNumberSelection = useCallback(
@@ -1279,29 +1398,94 @@ export const WebOsApp: React.FC = () => {
     [apiBase]
   );
 
-  const restoreTokenByMacAddress = useCallback(
-    async (macAddress?: string): Promise<{ deviceToken?: string; deviceName?: string; resolvedBase?: string }> => {
-      const normalizedMac = (macAddress ?? '').trim();
+  const resolveWebOsDeviceIdentity = useCallback(
+    async (): Promise<{ macAddress?: string; fingerprint?: string }> => {
+      const [macAddress, fingerprint] = await Promise.all([
+        requestWebOsMacAddress(),
+        requestWebOsDeviceFingerprint()
+      ]);
+
+      const normalizedMac = macAddress ? normalizeMacAddress(macAddress) : undefined;
+      const normalizedFingerprint = normalizeDeviceFingerprint(fingerprint);
+
+      if (normalizedMac) {
+        setDeviceMacAddress(normalizedMac);
+      }
+      if (normalizedFingerprint) {
+        setDeviceFingerprint(normalizedFingerprint);
+      }
+
+      return {
+        macAddress: normalizedMac,
+        fingerprint: normalizedFingerprint
+      };
+    },
+    []
+  );
+
+  const restoreTokenByIdentity = useCallback(
+    async (identity: {
+      macAddress?: string;
+      fingerprint?: string;
+    }): Promise<{ deviceToken?: string; deviceName?: string; resolvedBase?: string }> => {
+      const normalizedMac = identity.macAddress?.trim();
+      const normalizedFingerprint = normalizeDeviceFingerprint(identity.fingerprint);
       const candidates = buildApiBaseCandidates(apiBase);
 
       for (const candidateBase of candidates) {
         try {
-          const restoreUrl = normalizedMac
-            ? `${candidateBase}/devices/webos/restore-token?mac=${encodeURIComponent(normalizedMac)}`
-            : `${candidateBase}/devices/webos/restore-token`;
-          const response = await fetchJson<WebOsRestoreResponse>(
-            restoreUrl
+          if (normalizedMac) {
+            const macResponse = await fetchJson<WebOsRestoreResponse>(
+              `${candidateBase}/devices/webos/restore-token?mac=${encodeURIComponent(normalizedMac)}`
+            );
+            if (
+              macResponse.restored &&
+              typeof macResponse.deviceToken === 'string' &&
+              macResponse.deviceToken.trim()
+            ) {
+              return {
+                deviceToken: macResponse.deviceToken.trim(),
+                deviceName: macResponse.deviceName,
+                resolvedBase: candidateBase
+              };
+            }
+          }
+
+          if (normalizedFingerprint) {
+            const fingerprintResponse = await fetchJson<WebOsRestoreResponse>(
+              `${candidateBase}/devices/restore-token?platform=webos&fingerprint=${encodeURIComponent(normalizedFingerprint)}`
+            );
+            if (
+              fingerprintResponse.restored &&
+              typeof fingerprintResponse.deviceToken === 'string' &&
+              fingerprintResponse.deviceToken.trim()
+            ) {
+              return {
+                deviceToken: fingerprintResponse.deviceToken.trim(),
+                deviceName: fingerprintResponse.deviceName,
+                resolvedBase: candidateBase
+              };
+            }
+          }
+
+          const legacyResponse = await fetchJson<WebOsRestoreResponse>(
+            `${candidateBase}/devices/webos/restore-token`
           );
-          if (response.restored && typeof response.deviceToken === 'string' && response.deviceToken.trim()) {
+          if (
+            legacyResponse.restored &&
+            typeof legacyResponse.deviceToken === 'string' &&
+            legacyResponse.deviceToken.trim()
+          ) {
             return {
-              deviceToken: response.deviceToken.trim(),
-              deviceName: response.deviceName,
+              deviceToken: legacyResponse.deviceToken.trim(),
+              deviceName: legacyResponse.deviceName,
               resolvedBase: candidateBase
             };
           }
-          return {
-            resolvedBase: candidateBase
-          };
+
+          // Backend responded but has no matching paired device.
+          // Continue probing other API candidates before giving up.
+          continue;
         } catch {
           // ignore restore failures and continue with next candidate
         }
@@ -1369,6 +1553,8 @@ export const WebOsApp: React.FC = () => {
 
   const loadDayGridForToken = useCallback(
     async (token: string, dayKey: string): Promise<void> => {
+      const requestId = epgDayLoadRequestRef.current + 1;
+      epgDayLoadRequestRef.current = requestId;
       const normalizedToken = token.trim();
       if (!normalizedToken) {
         setEpgDayByTvgId({});
@@ -1402,43 +1588,78 @@ export const WebOsApp: React.FC = () => {
         throw lastError instanceof Error ? lastError : new Error(FETCH_ERROR_MESSAGE);
       }
 
+      if (epgDayLoadRequestRef.current !== requestId) {
+        return;
+      }
+
       if (usedBase !== apiBase) {
         setApiBase(usedBase);
         setStorageValue(API_BASE_KEY, usedBase);
       }
 
-      const mapped: Record<string, EpgProgramItem[]> = {};
       const items = Array.isArray(response.items) ? response.items : [];
-      for (const item of items) {
-        if (!item || typeof item.channelTvgId !== 'string') {
-          continue;
-        }
-        const tvgId = normalizeTvgId(item.channelTvgId);
-        if (!tvgId) {
-          continue;
-        }
-        const programs = Array.isArray(item.programs) ? item.programs : [];
-        const validPrograms = programs
-          .filter((program) => {
-            const start = parseProgramTimestamp(program?.start);
-            const end = parseProgramTimestamp(program?.end);
-            return Boolean(program && typeof program.title === 'string' && typeof start === 'number' && typeof end === 'number');
-          })
-          .sort((left, right) => {
-            const leftStart = parseProgramTimestamp(left.start) ?? 0;
-            const rightStart = parseProgramTimestamp(right.start) ?? 0;
-            return leftStart - rightStart;
-          });
-        if (validPrograms.length > 0) {
-          mapped[tvgId] = validPrograms;
-        }
-      }
+      const chunkSize =
+        runtimeProfile.mode === 'legacy'
+          ? EPG_DAY_CHUNK_SIZE_LEGACY
+          : runtimeProfile.mode === 'modern'
+            ? EPG_DAY_CHUNK_SIZE_MODERN
+            : EPG_DAY_CHUNK_SIZE_BALANCED;
 
-      setEpgDayByTvgId(mapped);
+      setEpgDayByTvgId({});
       setEpgDayDate(dayKey);
       epgDayRefreshRef.current = Date.now();
+
+      for (let offset = 0; offset < items.length; offset += chunkSize) {
+        if (epgDayLoadRequestRef.current !== requestId) {
+          return;
+        }
+
+        const mappedChunk: Record<string, EpgProgramItem[]> = {};
+        let hasMappedChunk = false;
+        const chunkItems = items.slice(offset, offset + chunkSize);
+        for (const item of chunkItems) {
+          if (!item || typeof item.channelTvgId !== 'string') {
+            continue;
+          }
+          const tvgId = normalizeTvgId(item.channelTvgId);
+          if (!tvgId) {
+            continue;
+          }
+
+          const programs = Array.isArray(item.programs) ? item.programs : [];
+          const validPrograms = programs
+            .filter((program) => {
+              const start = parseProgramTimestamp(program?.start);
+              const end = parseProgramTimestamp(program?.end);
+              return Boolean(
+                program && typeof program.title === 'string' && typeof start === 'number' && typeof end === 'number'
+              );
+            })
+            .sort((left, right) => {
+              const leftStart = parseProgramTimestamp(left.start) ?? 0;
+              const rightStart = parseProgramTimestamp(right.start) ?? 0;
+              return leftStart - rightStart;
+            });
+
+          if (validPrograms.length > 0) {
+            mappedChunk[tvgId] = validPrograms.slice(0, MAX_DAY_PROGRAMS_PER_CHANNEL);
+            hasMappedChunk = true;
+          }
+        }
+
+        if (hasMappedChunk) {
+          setEpgDayByTvgId((current) => ({
+            ...current,
+            ...mappedChunk
+          }));
+        }
+
+        if (offset + chunkSize < items.length) {
+          await waitForUiYield();
+        }
+      }
     },
-    [apiBase]
+    [apiBase, runtimeProfile.mode]
   );
 
   const loadPlaylist = useCallback(
@@ -1516,7 +1737,6 @@ export const WebOsApp: React.FC = () => {
       setGuideFocusTimeMs(Date.now());
       setGuideWindowStartMs(getGuideWindowStart(Date.now()));
       setPlayingChannelId(restoredPlayingChannelId);
-      setPlaybackOverride(undefined);
       setShowChannelList(false);
       setMenuView('epg');
       setMenuFocusZone('channels');
@@ -1534,11 +1754,13 @@ export const WebOsApp: React.FC = () => {
       loadNowNextForToken(token).catch(() => {
         // EPG is optional; keep playback active even if now-next request fails.
       });
-      loadDayGridForToken(token, getLocalDateKey(new Date())).catch(() => {
-        // Keep playback active if day EPG fails.
-      });
+      if (shouldLoadDayGrid) {
+        loadDayGridForToken(token, getLocalDateKey(new Date())).catch(() => {
+          // Keep playback active if day EPG fails.
+        });
+      }
     },
-    [apiBase, clearChannelNumberInput, loadDayGridForToken, loadNowNextForToken]
+    [apiBase, clearChannelNumberInput, loadDayGridForToken, loadNowNextForToken, shouldLoadDayGrid]
   );
 
   const startPairing = useCallback(async () => {
@@ -1557,10 +1779,12 @@ export const WebOsApp: React.FC = () => {
     setEpgDayDate(getLocalDateKey(new Date()));
     setGuideFocusTimeMs(Date.now());
     setGuideWindowStartMs(getGuideWindowStart(Date.now()));
-    setPlaybackOverride(undefined);
-    const macAddress = await requestWebOsMacAddress();
-    setDeviceMacAddress(macAddress);
-    const deviceName = macAddress ? `LG webOS TV [${macAddress}]` : 'LG webOS TV';
+    const identity = await resolveWebOsDeviceIdentity();
+    const deviceName = identity.macAddress
+      ? `LG webOS TV [${identity.macAddress}]`
+      : identity.fingerprint
+        ? `LG webOS TV [${identity.fingerprint}]`
+        : 'LG webOS TV';
 
     const candidates = buildApiBaseCandidates(apiBase);
 
@@ -1602,9 +1826,11 @@ export const WebOsApp: React.FC = () => {
     setPairingUrl(`${getWebAdminBase(usedBase)}/?pairCode=${encodeURIComponent(started.code)}`);
     pairPollFailureCountRef.current = 0;
     setStatusMessage(
-      macAddress
-        ? `Scan QR and confirm pair in web-admin. MAC: ${macAddress}`
-        : 'Scan QR and confirm pair in web-admin.'
+      identity.macAddress
+        ? `Scan QR and confirm pair in web-admin. MAC: ${identity.macAddress}`
+        : identity.fingerprint
+          ? `Scan QR and confirm pair in web-admin. ID: ${identity.fingerprint}`
+          : 'Scan QR and confirm pair in web-admin.'
     );
 
     const intervalMs = Math.max(started.pollIntervalSec || 3, 2) * 1000;
@@ -1688,44 +1914,7 @@ export const WebOsApp: React.FC = () => {
           });
         });
     }, intervalMs);
-  }, [apiBase, clearEpgPolling, clearPairPolling, loadPlaylist]);
-
-  const logoutDevice = useCallback(() => {
-    clearPairPolling();
-    clearEpgPolling();
-    removeStorageValue(DEVICE_TOKEN_KEY);
-    removeStorageValue(LAST_PLAYING_CHANNEL_ID_KEY);
-    setDeviceToken(undefined);
-    setChannels([]);
-    setEpgNowNextByChannelId({});
-    setEpgDayByTvgId({});
-    setEpgDayDate(getLocalDateKey(new Date()));
-    setSelectedCategoryIndex(0);
-    setSelectedIndex(0);
-    setGuideSelectedIndex(0);
-    setGuideListStartIndex(0);
-    setGuideFocusTimeMs(Date.now());
-    setGuideWindowStartMs(getGuideWindowStart(Date.now()));
-    setPlayingChannelId(undefined);
-    setPlaybackOverride(undefined);
-    setShowChannelList(false);
-    setMenuView('epg');
-    setMenuFocusZone('channels');
-    setChannelNumberInput('');
-    setIsMuted(false);
-    channelNumberInputRef.current = '';
-    clearChannelNumberTimer();
-    setAudioOnlyWarning(undefined);
-    setPairingCode(undefined);
-    setPairingUrl(undefined);
-    setView('pairing');
-    setStatusMessage('Disconnected. Generating a new QR...');
-    setErrorMessage(undefined);
-    startPairing().catch((error: unknown) => {
-      const message = error instanceof Error ? error.message : FETCH_ERROR_MESSAGE;
-      setErrorMessage(message);
-    });
-  }, [clearChannelNumberTimer, clearEpgPolling, clearPairPolling, startPairing]);
+  }, [apiBase, clearEpgPolling, clearPairPolling, loadPlaylist, resolveWebOsDeviceIdentity]);
 
   useEffect(() => {
     if (!categories.length) {
@@ -1763,17 +1952,17 @@ export const WebOsApp: React.FC = () => {
       return;
     }
 
-    const maxStartIndex = Math.max(channels.length - GUIDE_VISIBLE_ROWS, 0);
+    const maxStartIndex = Math.max(channels.length - guideVisibleRows, 0);
     setGuideListStartIndex((currentStart) => {
       let nextStart = Math.min(Math.max(currentStart, 0), maxStartIndex);
       if (guideSelectedIndex < nextStart) {
         nextStart = guideSelectedIndex;
-      } else if (guideSelectedIndex >= nextStart + GUIDE_VISIBLE_ROWS) {
-        nextStart = guideSelectedIndex - GUIDE_VISIBLE_ROWS + 1;
+      } else if (guideSelectedIndex >= nextStart + guideVisibleRows) {
+        nextStart = guideSelectedIndex - guideVisibleRows + 1;
       }
       return Math.min(Math.max(nextStart, 0), maxStartIndex);
     });
-  }, [channels.length, guideSelectedIndex, showChannelList]);
+  }, [channels.length, guideSelectedIndex, guideVisibleRows, showChannelList]);
 
   useEffect(() => {
     if (bootstrappedRef.current) {
@@ -1819,13 +2008,10 @@ export const WebOsApp: React.FC = () => {
         }
       }
 
-      const macAddress = await requestWebOsMacAddress();
-      if (macAddress) {
-        setDeviceMacAddress(macAddress);
-      }
+      const identity = await resolveWebOsDeviceIdentity();
       setStatusMessage('Restoring TV from database...');
 
-      const restored = await restoreTokenByMacAddress(macAddress);
+      const restored = await restoreTokenByIdentity(identity);
       if (restored.resolvedBase && restored.resolvedBase !== apiBase) {
         setApiBase(restored.resolvedBase);
         setStorageValue(API_BASE_KEY, restored.resolvedBase);
@@ -1853,7 +2039,7 @@ export const WebOsApp: React.FC = () => {
       const message = error instanceof Error ? error.message : FETCH_ERROR_MESSAGE;
       setErrorMessage(message);
     });
-  }, [apiBase, loadPlaylist, probeStoredDeviceToken, restoreTokenByMacAddress, startPairing]);
+  }, [apiBase, loadPlaylist, probeStoredDeviceToken, resolveWebOsDeviceIdentity, restoreTokenByIdentity, startPairing]);
 
   useEffect(() => {
     if (view !== 'player' || !playingChannel || !videoRef.current) {
@@ -1861,13 +2047,9 @@ export const WebOsApp: React.FC = () => {
     }
 
     const video = videoRef.current;
-    const playbackUrl =
-      playbackOverride && playbackOverride.channelId === playingChannel.id
-        ? playbackOverride.url
-        : playingChannel.url;
     setAudioOnlyWarning(undefined);
     video.muted = isMuted;
-    video.src = playbackUrl;
+    video.src = playingChannel.url;
     video.load();
     video.play().catch(() => {
       setErrorMessage('Could not start stream on this channel.');
@@ -1884,64 +2066,7 @@ export const WebOsApp: React.FC = () => {
     return () => {
       window.clearTimeout(timer);
     };
-  }, [isMuted, playbackOverride, playingChannel, view]);
-
-  useEffect(() => {
-    const previewVideo = guidePreviewVideoRef.current;
-    if (!previewVideo) {
-      return;
-    }
-
-    if (view !== 'player' || !showChannelList) {
-      previewVideo.pause();
-      previewVideo.removeAttribute('src');
-      previewVideo.srcObject = null;
-      previewVideo.load();
-      return;
-    }
-
-    previewVideo.muted = true;
-    previewVideo.defaultMuted = true;
-    previewVideo.playsInline = true;
-
-    const mainVideo = videoRef.current as (HTMLVideoElement & {
-      captureStream?: () => MediaStream;
-      mozCaptureStream?: () => MediaStream;
-    }) | null;
-    const capture = mainVideo?.captureStream ?? mainVideo?.mozCaptureStream;
-    let attachedCaptureStream = false;
-
-    if (capture) {
-      try {
-        const stream = capture.call(mainVideo);
-        if (stream) {
-          if (previewVideo.srcObject !== stream) {
-            previewVideo.srcObject = stream;
-          }
-          attachedCaptureStream = true;
-        }
-      } catch {
-        attachedCaptureStream = false;
-      }
-    }
-
-    if (!attachedCaptureStream) {
-      if (previewVideo.srcObject) {
-        previewVideo.srcObject = null;
-      }
-      if (currentPlaybackUrl) {
-        const currentSrc = previewVideo.currentSrc || previewVideo.src;
-        if (currentSrc !== currentPlaybackUrl) {
-          previewVideo.src = currentPlaybackUrl;
-          previewVideo.load();
-        }
-      }
-    }
-
-    previewVideo.play().catch(() => {
-      // Ignore preview autoplay errors.
-    });
-  }, [currentPlaybackUrl, showChannelList, view]);
+  }, [isMuted, playingChannel, view]);
 
   useEffect(() => {
     if (view !== 'player' || !deviceToken) {
@@ -1957,21 +2082,21 @@ export const WebOsApp: React.FC = () => {
       loadNowNextForToken(deviceToken).catch(() => {
         // Keep existing UI state if EPG backend is temporarily unavailable.
       });
-    }, EPG_POLL_INTERVAL_MS);
+    }, runtimeProfile.epgPollIntervalMs);
 
     return () => {
       clearEpgPolling();
     };
-  }, [clearEpgPolling, deviceToken, loadNowNextForToken, view]);
+  }, [clearEpgPolling, deviceToken, loadNowNextForToken, runtimeProfile.epgPollIntervalMs, view]);
 
   useEffect(() => {
-    if (view !== 'player' || !deviceToken || !showChannelList || menuView !== 'epg') {
+    if (view !== 'player' || !deviceToken || !showChannelList || menuView !== 'epg' || !shouldLoadDayGrid) {
       return;
     }
 
     const refreshDay = (): void => {
       const targetDayKey = getLocalDateKey(new Date());
-      const stale = Date.now() - epgDayRefreshRef.current > 120_000;
+      const stale = Date.now() - epgDayRefreshRef.current > runtimeProfile.epgDayRefreshIntervalMs;
       if (targetDayKey !== epgDayDate || stale) {
         loadDayGridForToken(deviceToken, targetDayKey).catch(() => {
           // Keep the guide open even if a provider is temporarily unavailable.
@@ -1980,11 +2105,38 @@ export const WebOsApp: React.FC = () => {
     };
 
     refreshDay();
-    const intervalId = window.setInterval(refreshDay, 120_000);
+    const intervalId = window.setInterval(refreshDay, runtimeProfile.epgDayRefreshIntervalMs);
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [deviceToken, epgDayDate, loadDayGridForToken, menuView, showChannelList, view]);
+  }, [
+    deviceToken,
+    epgDayDate,
+    loadDayGridForToken,
+    menuView,
+    runtimeProfile.epgDayRefreshIntervalMs,
+    shouldLoadDayGrid,
+    showChannelList,
+    view
+  ]);
+
+  useEffect(() => {
+    if (view !== 'player' || !showChannelList) {
+      return;
+    }
+
+    const syncGuideWindowWithNow = (): void => {
+      const nowTime = Date.now();
+      setGuideFocusTimeMs((current) => (current < nowTime ? nowTime : current));
+      setGuideWindowStartMs((current) => (current < nowTime ? nowTime : current));
+    };
+
+    syncGuideWindowWithNow();
+    const intervalId = window.setInterval(syncGuideWindowWithNow, GUIDE_NOW_SYNC_INTERVAL_MS);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [showChannelList, view]);
 
   useEffect(() => {
     if (!videoRef.current) {
@@ -2001,7 +2153,7 @@ export const WebOsApp: React.FC = () => {
         return;
       }
 
-      if (action === 'LIST' || action === 'GUIDE' || action === 'INFO' || action === 'MENU') {
+      if (action === 'MENU') {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
@@ -2011,9 +2163,6 @@ export const WebOsApp: React.FC = () => {
         if (
           Date.now() < playerInputGuardUntilRef.current &&
           (action === 'ENTER' ||
-            action === 'LIST' ||
-            action === 'GUIDE' ||
-            action === 'INFO' ||
             action === 'MENU' ||
             action === 'RED' ||
             action === 'BLUE')
@@ -2024,6 +2173,24 @@ export const WebOsApp: React.FC = () => {
 
         registerPlayerActivity();
 
+        const shouldThrottleNavigation =
+          action === 'UP' ||
+          action === 'DOWN' ||
+          action === 'LEFT' ||
+          action === 'RIGHT' ||
+          action === 'REWIND' ||
+          action === 'FAST_FORWARD' ||
+          action === 'CHANNEL_UP' ||
+          action === 'CHANNEL_DOWN';
+        if (shouldThrottleNavigation && event.repeat) {
+          const nowTime = Date.now();
+          if (nowTime - lastNavigationEventAtRef.current < navigationRepeatThrottleMs) {
+            event.preventDefault();
+            return;
+          }
+          lastNavigationEventAtRef.current = nowTime;
+        }
+
         if (action === 'DIGIT' && Number.isFinite(digit)) {
           event.preventDefault();
           pushChannelNumberDigit(digit as number);
@@ -2033,15 +2200,12 @@ export const WebOsApp: React.FC = () => {
         if (
           !showChannelList &&
           (action === 'ENTER' ||
-            action === 'LIST' ||
-            action === 'GUIDE' ||
-            action === 'INFO' ||
             action === 'MENU' ||
             action === 'RED' ||
             action === 'BLUE')
         ) {
           event.preventDefault();
-          openChannelList('channels', 'epg');
+          openChannelList();
           return;
         }
 
@@ -2072,7 +2236,7 @@ export const WebOsApp: React.FC = () => {
         if (action === 'STOP') {
           event.preventDefault();
           videoRef.current?.pause();
-          openChannelList('channels', 'epg');
+          openChannelList();
           return;
         }
 
@@ -2154,13 +2318,13 @@ export const WebOsApp: React.FC = () => {
 
         if (action === 'LEFT') {
           event.preventDefault();
-          stepGuideTimeline(-1);
+          stepGuideCategory(-1);
           return;
         }
 
         if (action === 'RIGHT') {
           event.preventDefault();
-          stepGuideTimeline(1);
+          stepGuideCategory(1);
           return;
         }
 
@@ -2168,30 +2332,6 @@ export const WebOsApp: React.FC = () => {
           event.preventDefault();
           const guideChannel = channels[guideSelectedIndex];
           if (guideChannel) {
-            const focusedProgram = getGuideProgramForChannelAtFocus(guideChannel);
-            const focusedProgramEnd = parseProgramTimestamp(focusedProgram?.end);
-            const archiveDays = resolveArchiveDays(guideChannel);
-            const canPlayArchive =
-              Boolean(focusedProgram) &&
-              typeof focusedProgramEnd === 'number' &&
-              focusedProgramEnd <= Date.now() &&
-              archiveDays > 0;
-
-            if (focusedProgram && canPlayArchive) {
-              const archiveUrl = buildArchiveUrl(guideChannel, focusedProgram);
-              if (archiveUrl) {
-                playArchiveChannelById(
-                  guideChannel.id,
-                  archiveUrl,
-                  `${focusedProgram.title} (${formatProgramRange(focusedProgram)})`
-                );
-                closeChannelList();
-                clearChannelNumberInput();
-                setStatusMessage(`Arhiva: ${guideChannel.name} - ${focusedProgram.title}`);
-                return;
-              }
-            }
-
             playLiveChannelById(guideChannel.id);
             closeChannelList();
             clearChannelNumberInput();
@@ -2223,17 +2363,16 @@ export const WebOsApp: React.FC = () => {
     channels,
     clearChannelNumberInput,
     closeChannelList,
-    getGuideProgramForChannelAtFocus,
     guideSelectedIndex,
+    navigationRepeatThrottleMs,
     openChannelList,
-    playArchiveChannelById,
     playCurrentVideo,
     playLiveChannelById,
     pushChannelNumberDigit,
     registerPlayerActivity,
     showChannelList,
     startPairing,
-    stepGuideTimeline,
+    stepGuideCategory,
     stepChannelAndPlay,
     togglePlayPause,
     view
@@ -2342,11 +2481,6 @@ export const WebOsApp: React.FC = () => {
     ? `https://api.qrserver.com/v1/create-qr-code/?size=260x260&data=${encodeURIComponent(pairingUrl)}`
     : undefined;
   const guideGroupLabel = selectedGuideChannel?.groupName ?? selectedGuideChannel?.group ?? 'Toate canalele';
-  const guideDayLabel = new Date(guideFocusTimeMs).toLocaleDateString('ro-RO', {
-    weekday: 'short',
-    day: '2-digit',
-    month: '2-digit'
-  });
   const guideHeaderDateTime = new Date(nowMs).toLocaleString('ro-RO', {
     weekday: 'long',
     day: '2-digit',
@@ -2355,17 +2489,14 @@ export const WebOsApp: React.FC = () => {
     minute: '2-digit',
     hour12: false
   });
-  const focusedProgramGenre = inferProgramGenre(focusedGuideProgram);
-  const focusedProgramTitle = focusedGuideProgram?.title ?? 'EPG indisponibil';
-  const focusedProgramDescription =
-    focusedGuideProgram?.description?.trim() || 'Nu exista descriere pentru acest program.';
-  const focusedProgramEndMs = parseProgramTimestamp(focusedGuideProgram?.end);
-  const selectedGuideArchiveDays = resolveArchiveDays(selectedGuideChannel);
-  const canPlayFocusedArchive =
-    Boolean(focusedGuideProgram) &&
-    typeof focusedProgramEndMs === 'number' &&
-    focusedProgramEndMs <= nowMs &&
-    selectedGuideArchiveDays > 0;
+  const playerClassName = [
+    'player',
+    `player--runtime-${runtimeProfile.mode}`,
+    runtimeProfile.disableBackdropFilter ? 'player--no-backdrop' : '',
+    isUiVisible && showChannelList ? 'is-menu-open' : ''
+  ]
+    .filter(Boolean)
+    .join(' ');
   if (view !== 'player') {
     return (
       <div className="setup">
@@ -2384,7 +2515,7 @@ export const WebOsApp: React.FC = () => {
   }
 
   return (
-    <div className={isUiVisible && showChannelList ? 'player is-menu-open' : 'player'}>
+    <div className={playerClassName}>
       <main className="screen">
         <video ref={videoRef} className="video" playsInline />
 
@@ -2435,7 +2566,9 @@ export const WebOsApp: React.FC = () => {
                   ? 'Pair activ. Seteaza playlist in admin.'
                   : 'CH+/CH- sau UP/DOWN canal | OK: ghid complet (canale + categorie + EPG) | PLAY/PAUSE control'}
               </p>
-              {playbackOverride ? <p className="screen__hint">Arhiva activa: {playbackOverride.label}</p> : null}
+              {audioOnlyWarning ? <p className="msg msg--error screen__msg">{audioOnlyWarning}</p> : null}
+              {errorMessage ? <p className="msg msg--error screen__msg">{errorMessage}</p> : null}
+              {statusMessage ? <p className="msg msg--ok screen__msg">{statusMessage}</p> : null}
               {channels.length === 0 ? <p className="msg msg--ok screen__msg">Player pornit. Nu exista inca canale alocate.</p> : null}
             </div>
           </>
@@ -2443,7 +2576,7 @@ export const WebOsApp: React.FC = () => {
       </main>
 
       {isUiVisible && showChannelList ? (
-        <aside className="epgx-guide">
+        <aside className={runtimeProfile.simplifyGuideRows ? 'epgx-guide epgx-guide--simplified' : 'epgx-guide'}>
           <header className="epgx-guide__header">
             <div className="epgx-guide__title-wrap">
               <h2 className="epgx-guide__title">TV Guide</h2>
@@ -2456,19 +2589,6 @@ export const WebOsApp: React.FC = () => {
               <span className="epgx-guide__action-chip">SETARI</span>
             </div>
           </header>
-
-          <section className="epgx-guide__hero">
-            <div className="epgx-guide__preview">
-              <video ref={guidePreviewVideoRef} className="epgx-guide__preview-video" playsInline muted />
-            </div>
-            <div className="epgx-guide__hero-info">
-              <p className="epgx-guide__hero-channel">
-                #{guideSelectedIndex + 1} {selectedGuideChannel?.name ?? 'Canal'}
-              </p>
-              <p className="epgx-guide__hero-title">{focusedProgramTitle}</p>
-              <p className="epgx-guide__hero-time">{formatProgramRange(focusedGuideProgram)}</p>
-            </div>
-          </section>
 
           <div className="epgx-guide__table-head">
             <span className="epgx-guide__table-col epgx-guide__table-col--nr">Nr</span>
@@ -2503,39 +2623,46 @@ export const WebOsApp: React.FC = () => {
               visibleGuideChannels.map((channel, localIndex) => {
                 const index = guideWindowRange.start + localIndex;
                 const isSelectedRow = index === guideSelectedIndex;
-                const archiveDays = resolveArchiveDays(channel);
                 const nowNext = getNowNextForChannel(channel);
                 const rowLogo = nowNext?.channelLogo ?? channel.logo;
                 const normalizedRowLogo = typeof rowLogo === 'string' ? rowLogo.trim() : '';
                 const showRowLogo = normalizedRowLogo.length > 0;
                 const programs = getProgramsForChannel(channel);
+                const rowTimelineBlockLimit = isSelectedRow
+                  ? timelineBlockLimit
+                  : Math.max(2, Math.floor(timelineBlockLimit / 2));
+                const rowTimelineFocusMs = isSelectedRow ? guideFocusTimeMs : nowMs;
 
-                const timelineBlocks = programs
-                  .map((program, programIndex) => {
-                    const startMs = parseProgramTimestamp(program.start);
-                    const endMs = parseProgramTimestamp(program.end);
-                    if (typeof startMs !== 'number' || typeof endMs !== 'number' || endMs <= startMs) {
-                      return undefined;
-                    }
-                    if (endMs <= guideWindowStartMs || startMs >= guideWindowEndMs) {
-                      return undefined;
-                    }
+                const timelineBlocks = trimTimelineBlocksAroundFocus(
+                  programs
+                    .map((program, programIndex) => {
+                      const startMs = parseProgramTimestamp(program.start);
+                      const endMs = parseProgramTimestamp(program.end);
+                      if (typeof startMs !== 'number' || typeof endMs !== 'number' || endMs <= startMs) {
+                        return undefined;
+                      }
+                      if (endMs <= guideWindowStartMs || startMs >= guideWindowEndMs) {
+                        return undefined;
+                      }
 
-                    const clippedStartMs = Math.max(startMs, guideWindowStartMs);
-                    const clippedEndMs = Math.min(endMs, guideWindowEndMs);
-                    const leftPct = ((clippedStartMs - guideWindowStartMs) / GUIDE_TIMELINE_WINDOW_MS) * 100;
-                    const widthPct = Math.max(((clippedEndMs - clippedStartMs) / GUIDE_TIMELINE_WINDOW_MS) * 100, 4);
-                    return {
-                      key: `${channel.id}:${programIndex}:${program.start}`,
-                      program,
-                      startMs,
-                      endMs,
-                      leftPct,
-                      widthPct,
-                      canArchive: endMs <= nowMs && archiveDays > 0
-                    };
-                  })
-                  .filter((item): item is NonNullable<typeof item> => Boolean(item));
+                      const clippedStartMs = Math.max(startMs, guideWindowStartMs);
+                      const clippedEndMs = Math.min(endMs, guideWindowEndMs);
+                      const leftPct = ((clippedStartMs - guideWindowStartMs) / GUIDE_TIMELINE_WINDOW_MS) * 100;
+                      const widthPct = Math.max(((clippedEndMs - clippedStartMs) / GUIDE_TIMELINE_WINDOW_MS) * 100, 4);
+                      return {
+                        key: `${channel.id}:${programIndex}:${program.start}`,
+                        program,
+                        startMs,
+                        endMs,
+                        leftPct,
+                        widthPct,
+                        canArchive: false
+                      };
+                    })
+                    .filter((item): item is NonNullable<typeof item> => Boolean(item)),
+                  rowTimelineFocusMs,
+                  rowTimelineBlockLimit
+                );
 
                 const focusMatch = timelineBlocks.find((block) => guideFocusTimeMs >= block.startMs && guideFocusTimeMs < block.endMs);
                 const fallbackFocus = timelineBlocks.find((block) => block.startMs >= guideFocusTimeMs) ?? timelineBlocks[0];
@@ -2557,7 +2684,13 @@ export const WebOsApp: React.FC = () => {
                     <span className="epgx-guide__row-logo-col">
                       <span className="epgx-guide__row-logo-slot">
                         {showRowLogo ? (
-                          <img className="epgx-guide__row-logo" src={normalizedRowLogo} alt={`${channel.name} logo`} />
+                          <img
+                            className="epgx-guide__row-logo"
+                            src={normalizedRowLogo}
+                            alt={`${channel.name} logo`}
+                            loading="lazy"
+                            decoding="async"
+                          />
                         ) : (
                           <span className="epgx-guide__row-logo-fallback">
                             {(channel.name || '?').slice(0, 1).toUpperCase()}
@@ -2568,13 +2701,15 @@ export const WebOsApp: React.FC = () => {
                     <span className="epgx-guide__row-name">{channel.name || `Canal ${index + 1}`}</span>
 
                     <span className="epgx-guide__row-timeline">
-                      {guideTickMarks.slice(1, -1).map((tick) => (
-                        <span
-                          key={`${channel.id}:tick:${tick.timeMs}`}
-                          className="epgx-guide__row-gridline"
-                          style={{ left: `${tick.leftPct}%` }}
-                        />
-                      ))}
+                      {runtimeProfile.simplifyGuideRows
+                        ? null
+                        : guideTickMarks.slice(1, -1).map((tick) => (
+                            <span
+                              key={`${channel.id}:tick:${tick.timeMs}`}
+                              className="epgx-guide__row-gridline"
+                              style={{ left: `${tick.leftPct}%` }}
+                            />
+                          ))}
                       {showNowLine ? <span className="epgx-guide__row-now-line" style={{ left: `${nowLinePct}%` }} /> : null}
                       <span className="epgx-guide__row-focus-line" style={{ left: `${focusLinePct}%` }} />
 
@@ -2589,8 +2724,9 @@ export const WebOsApp: React.FC = () => {
                               style={{ left: `${block.leftPct}%`, width: `${block.widthPct}%` }}
                             >
                               <span className="epgx-guide__program-title">{block.program.title}</span>
-                              <span className="epgx-guide__program-time">{formatProgramRange(block.program)}</span>
-                              {block.canArchive ? <span className="epgx-guide__program-archive">ARHIVA</span> : null}
+                              {runtimeProfile.simplifyGuideRows ? null : (
+                                <span className="epgx-guide__program-time">{formatProgramRange(block.program)}</span>
+                              )}
                             </span>
                           );
                         })
@@ -2611,30 +2747,6 @@ export const WebOsApp: React.FC = () => {
               })
             )}
           </div>
-
-          <footer className="epgx-guide__details">
-            <div className="epgx-guide__details-main">
-              <p className="epgx-guide__details-title">{focusedProgramTitle}</p>
-              <p className="epgx-guide__details-time">{formatProgramRange(focusedGuideProgram)}</p>
-              <p className="epgx-guide__details-description">{focusedProgramDescription}</p>
-            </div>
-            <div className="epgx-guide__details-chips">
-              <span className="epgx-guide__chip">
-                <strong>{focusedProgramGenre.icon}</strong>
-                {focusedProgramGenre.label}
-              </span>
-              <span className="epgx-guide__chip">Canal #{guideSelectedIndex + 1}</span>
-              <span className={canPlayFocusedArchive ? 'epgx-guide__chip is-accent' : 'epgx-guide__chip'}>
-                {canPlayFocusedArchive ? `Arhiva ${selectedGuideArchiveDays} zile` : 'Arhiva indisponibila'}
-              </span>
-              <span className="epgx-guide__chip">Favorite</span>
-              <span className="epgx-guide__chip">Reminder</span>
-              <span className="epgx-guide__chip">{guideDayLabel}</span>
-            </div>
-            <p className="epgx-guide__controls">
-              Sus/Jos canale | Stanga/Dreapta timp si arhiva | OK reda canalul sau arhiva | Back inchide guide
-            </p>
-          </footer>
         </aside>
       ) : null}
     </div>

@@ -3,301 +3,200 @@ No projects matched the filters "c:\Users\nikot\Desktop\playlist-modificat\app" 
 > @iptv/backend@0.1.0 dev C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend
 > tsx watch --tsconfig tsconfig.json src/main.ts
 
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThrottlerModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +1ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTelemetryModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminsModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuditModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDeviceApiModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDevicesModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOttCatalogModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEpgModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlaylistModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSystemModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register/resend, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register/confirm, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/password/forgot, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/password/reset, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevicesController {/devices}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/start, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/confirm, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/status, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/webos/restore-token, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/restore-token, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/:id/playlist, PATCH} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlaylistController {/playlist}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/set-url, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/upload, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/:id, PATCH} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/:id, DELETE} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/:id/refresh, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/status, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/channels, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id, PATCH} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id, DELETE} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id/channels, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id/channels, PUT} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id/activate, POST} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/activate-source, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOttCatalogController {/ott-catalog}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/stats, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/sync, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/sync/full, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels/sync, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEpgController {/epg}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/set-url, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/status, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/upload-gz, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDeviceApiController {/device}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/profile, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/playlist, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/now-next, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/day, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClientsController {/clients}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id/pairings, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, PATCH} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, DELETE} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminsController {/admins}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins/:id, DELETE} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTelemetryController {/telemetry}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telemetry/event, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuditController {/audit}:[39m[38;5;3m +1ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/audit, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSystemController {/system}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/health, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/jobs, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/jobs/refresh-playlists, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/backups, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/backups, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/backups/restore, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/config/export, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/config/import, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[SystemService] [39m[32mSystem automation enabled: playlist_refresh=1800s, auto_backup=21600s[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:23:44 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPrismaModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mThrottlerModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTelemetryModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mClientsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAdminsModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuditModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDeviceApiModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDevicesModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mOttCatalogModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mEpgModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPlaylistModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mSystemModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAppController {/}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register/resend, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register/confirm, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/password/forgot, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/password/reset, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDevicesController {/devices}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/start, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/confirm, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/pair/status, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/webos/restore-token, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/restore-token, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/devices/:id/playlist, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mPlaylistController {/playlist}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/upload, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/sources/:id/refresh, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/channels, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id/channels, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id/channels, PUT} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/custom/:id/activate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/playlist/activate-source, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mOttCatalogController {/ott-catalog}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/stats, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/sync/full, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/channels/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/providers/:providerId/programs/sync, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/ott-catalog/channels/:channelId/programs/sync, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mEpgController {/epg}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/set-url, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/epg/upload-gz, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mDeviceApiController {/device}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/profile, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/playlist, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/now-next, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/device/epg/day, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mClientsController {/clients}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id/pairings, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, PATCH} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/clients/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAdminsController {/admins}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/admins/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mTelemetryController {/telemetry}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/telemetry/event, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuditController {/audit}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/audit, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mSystemController {/system}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/health, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/jobs, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/jobs/refresh-playlists, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/backups, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/backups, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/backups/restore, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/config/export, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/system/config/import, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[SystemService] [39m[32mSystem automation enabled: playlist_refresh=1800s, auto_backup=21600s[39m
+[32m[Nest] 25948  - [39m11.03.2026, 09:40:10 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +0ms[39m
 Backend running on http://localhost:3000
-[32m[Nest] 13728  - [39m10.03.2026, 12:24:09 [32m    LOG[39m [38;5;3m[EpgService] [39m[32mIPTV-ORG all snapshot: loading 81 guides with concurrency 4[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/den-pobedy-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for День Победы HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnaya-zhizn.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородная Жизнь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnyy-int-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dialogi-rybalka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/evrokino.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Еврокино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/voprosy-otvety.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Вопросы и ответы and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zal-suda-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Зал Суда HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dozhd-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Дождь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zhivaja-priroda-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:24 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Вопросы и ответы and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for День Победы HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Зал Суда HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Дождь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Еврокино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородная Жизнь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/indija-tv.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:24:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Индийское Кино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Вопросы и ответы and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Зал Суда HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Еврокино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Индийское Кино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for День Победы HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Дождь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:25:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородная Жизнь HD and no cache exists; returning empty set[39m
-[32m[Nest] 13728  - [39m10.03.2026, 12:26:19 [32m    LOG[39m [38;5;3m[EpgService] [39m[32mIPTV-ORG all snapshot refreshed: 81 guides loaded, 0 failed, 25730 channels with now/next[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dozhd-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Дождь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/indija-tv.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Индийское Кино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnyy-int-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnaya-zhizn.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородная Жизнь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zhivaja-priroda-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dialogi-rybalka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:26:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Дождь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Индийское Кино and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородная Жизнь HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/tvc-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for ТВЦ HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kino-uhd-4k.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:27:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for ТВЦ HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dialogi-rybalka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnyy-int-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinokomedia-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кинокомедия HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zhivaja-priroda-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinomix-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киномикс HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinomult.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:28:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Живая природа HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кинокомедия HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киномикс HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kino-uhd-4k.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/mnogo-tv-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киносерия HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinosvidanije-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:29:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киносвидание HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киносвидание HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киносерия HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinomult.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dialogi-rybalka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnyy-int-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinohit-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кинохит HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinouzhas-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:41 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киноужас HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киносвидание HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киноужас HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кинохит HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киносерия HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:30:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/russkaja-comedija.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Комедия and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kriminalnoe-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/krasnaja-linija.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Красная линия and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киноужас HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Красная линия and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Комедия and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кинохит HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кинохит HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Комедия and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Красная линия and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Киноужас HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:28 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kino-uhd-4k.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:40 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kto-est-kto.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кто есть кто and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/love-story-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:31:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Лавстори HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:32:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:32:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Лавстори HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:32:45 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кто есть кто and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/dialogi-rybalka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/zagorodnyy-int-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kinomult.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kriminalnoe-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:06 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:30 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:30 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:30 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:30 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kto-est-kto.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кто есть кто and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/ljova-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Лёва HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/match-arena-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Матч! Арена HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kino-uhd-4k.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nashe-lubimoe-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:42 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Любимое HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/match-strana-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Матч! Страна HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/mir-24-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:33:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Мир 24 HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Лёва HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for КиноМульт and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Матч! Арена HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Мир 24 HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кто есть кто and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Загородный int HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Матч! Страна HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Диалоги о Рыбалке HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:25 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Любимое HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кино UHD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Мир 24 HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Кто есть кто and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Любимое HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Матч! Арена HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Лёва HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:38 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Матч! Страна HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kriminalnoe-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 12:34:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Криминальное HD and no cache exists; returning empty set[39m
-[33m[Nest] 13728  - [39m10.03.2026, 16:36:53 [33m   WARN[39m [38;5;3m[EpgService] [39m[33mXMLTV snapshot refresh failed (c631cd2b-fc8b-4b2f-a1ab-8d93c534ea35): fetch failed[39m
-[33m[Nest] 13728  - [39m10.03.2026, 16:37:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nashe-muzshkoe-hd.json: Ошибка HTTP 503 Service Unavailable[39m
-[33m[Nest] 13728  - [39m10.03.2026, 16:37:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Наше Мужское HD and no cache exists; returning empty set[39m
-C:\Users\nikot\Desktop\playlist-modificat\app\apps\backend:
- ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @iptv/backend@0.1.0 dev: `tsx watch --tsconfig tsconfig.json src/main.ts`
-Exit status 4294967295
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nauka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/muzyka-pervogo.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Музыка Первого; using cached programs (285)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/hct.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for НСТ; using cached programs (195)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/muz-tv.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:10 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:11 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:11 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Музыка Первого; using cached programs (285)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:11 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for НСТ; using cached programs (195)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:11 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:13 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:13 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:13 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Музыка Первого; using cached programs (285)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:13 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for НСТ; using cached programs (195)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kanal-o.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nostalgia.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Ностальгия; using cached programs (422)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nashe-nasledie-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше наследие HD; using cached programs (230)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nashe-novoe-kino-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:34 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше новое кино HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше новое кино HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Музыка Первого; using cached programs (285)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Ностальгия; using cached programs (422)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше наследие HD; using cached programs (230)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for НСТ; using cached programs (195)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:35 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Музыка Первого; using cached programs (285)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for НСТ; using cached programs (195)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше новое кино HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше наследие HD; using cached programs (230)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Ностальгия; using cached programs (422)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/otr-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:50 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for ОТР HD; using cached programs (398)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:59 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/patriot.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:43:59 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Патриот; using cached programs (226)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:44:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше наследие HD; using cached programs (230)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:44:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:44:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Ностальгия; using cached programs (422)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:44:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше новое кино HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:44:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for ОТР HD; using cached programs (398)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:44:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Патриот; using cached programs (226)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/muz-tv.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nauka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:39 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:39 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Муз-ТВ; using cached programs (302)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kanal-o.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/patriot.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Патриот; using cached programs (226)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/detskij-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Уникум HD; using cached programs (1142)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nashe-novoe-kino-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше новое кино HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/otr-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:45:56 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for ОТР HD; using cached programs (398)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/hokkejnyj-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Хоккей ТВ HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/hit-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Хит HD; using cached programs (248)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наше новое кино HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Уникум HD; using cached programs (1142)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Хит HD; using cached programs (248)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for ОТР HD; using cached programs (398)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Хоккей ТВ HD; using cached programs (153)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Патриот; using cached programs (226)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:46:43 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:47:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/nauka-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:47:00 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:47:46 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Наука HD; using cached programs (524)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:02 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=edem/epg/1121.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:02 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Premiere 1 HD and no cache exists; returning empty set[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:02 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/hit-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:02 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Хит HD; using cached programs (248)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=edem/epg/7840.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Prima Sport 1 HD RO and no cache exists; returning empty set[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/kanal-o.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for О!; using cached programs (245)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=edem/epg/7841.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh failed for Prima Sport 2 HD RO and no cache exists; returning empty set[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/detskij-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for Уникум HD; using cached programs (1142)[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mOTT fetch failed for https://epg.ott-play.com/php/show_prog.php?f=cbilling/epg/otr-hd.json: Ошибка HTTP 503 Service Unavailable[39m
+[33m[Nest] 25948  - [39m11.03.2026, 09:48:03 [33m   WARN[39m [38;5;3m[OttCatalogService] [39m[33mPrograms refresh skipped for ОТР HD; using cached programs (398)[39m
